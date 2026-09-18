@@ -29,12 +29,26 @@ export async function isBackendAlive() {
   return _backendAvailable;
 }
 
-export async function getLiveMandiPrices(state = '', commodity = '', limit = 50) {
+export async function getLiveMandiPrices(stateOrOptions = '', commodity = '', limit = 50) {
   try {
+    let s = '';
+    let c = '';
+    let l = 50;
+
+    if (typeof stateOrOptions === 'object' && stateOrOptions !== null) {
+      s = stateOrOptions.state || '';
+      c = stateOrOptions.commodity || '';
+      l = stateOrOptions.limit || 50;
+    } else {
+      s = stateOrOptions || '';
+      c = commodity || '';
+      l = limit || 50;
+    }
+
     const params = new URLSearchParams();
-    if (state) params.append('state', state);
-    if (commodity) params.append('commodity', commodity);
-    if (limit) params.append('limit', limit);
+    if (s && s !== 'ALL' && s !== 'All States/UTs') params.append('state', s);
+    if (c && c !== 'All Commodities') params.append('commodity', c);
+    if (l) params.append('limit', l);
 
     const res = await fetch(`${API_BASE_URL}/api/v1/mandi/live?${params.toString()}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

@@ -288,8 +288,9 @@ function SimplePlaceholder({ title, icon, description }) {
 }
 
 
-function ManageFarmersView({ onFarmersChange }) {
-  const [farmers, setFarmers] = useState(INITIAL_FPO_MEMBERS);
+function ManageFarmersView({ onFarmersChange, user }) {
+  const isDemo = Boolean(user?.isDemo || user?.phone === '9876543210' || user?.phone === '+91 98231 99001' || user?.phone === '9823199001');
+  const [farmers, setFarmers] = useState(() => (isDemo ? INITIAL_FPO_MEMBERS : []));
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newVillage, setNewVillage] = useState('');
@@ -318,15 +319,18 @@ function ManageFarmersView({ onFarmersChange }) {
           isLiveSupabase: true
         }));
 
-        // Merge keeping unique IDs
-        const existingIds = new Set(mapped.map(m => m.id));
-        const rest = INITIAL_FPO_MEMBERS.filter(init => !existingIds.has(init.id));
-        setFarmers([...mapped, ...rest]);
+        if (isDemo) {
+          const existingIds = new Set(mapped.map(m => m.id));
+          const rest = INITIAL_FPO_MEMBERS.filter(init => !existingIds.has(init.id));
+          setFarmers([...mapped, ...rest]);
+        } else {
+          setFarmers(mapped);
+        }
       }
     }).catch(err => console.warn('Supabase FPO members fetch error:', err));
 
     return () => { isMounted = false; };
-  }, []);
+  }, [isDemo]);
 
   const handleAddFarmer = async (e) => {
     e.preventDefault();
@@ -1282,6 +1286,64 @@ function FpoGovtSchemes() {
   );
 }
 
+function resolveFpoProfile(u) {
+  const isDemoUser = Boolean(
+    u?.isDemo === true ||
+    u?.phone === '9876543210' ||
+    u?.phone === '+91 98231 99001' ||
+    u?.phone === '9823199001'
+  );
+
+  if (isDemoUser) {
+    return {
+      name: u?.name || 'Nashik District Farmer Producer Co.',
+      regNo: u?.regNo || 'MH-FPO-2024-9921',
+      phone: u?.phone || '+91 98231 99001',
+      email: u?.email || 'contact@nashikfpo.org',
+      city: 'Pimpalgaon Baswant',
+      district: 'Nashik',
+      state: 'Maharashtra',
+      pincode: '422209',
+      avatar: u?.avatar || '🤝',
+      photoUrl: null,
+      membersCount: 520,
+      boardPresident: 'Balasaheb Vikhe Patil',
+      primaryCrops: 'Red Onion, Grapes, Pomegranate, Lokwan Wheat',
+      gstin: '27AABCS9912F1Z8',
+      pan: 'AABCS9912F',
+      warehouseLocation: 'Dindori MIDC CA Storage Hub',
+      storageCapacity: '4,500 MT',
+      verified: true,
+      isDemo: true
+    };
+  }
+
+  const details = u?.details || {};
+  const cleanPhone = String(u?.phone || '').replace(/\D/g, '');
+
+  return {
+    name: u?.name || u?.fpoName || details.name || 'Registered FPO',
+    regNo: u?.regNo || details.regNo || '',
+    phone: u?.phone || (cleanPhone ? `+91 ${cleanPhone.slice(-10)}` : ''),
+    email: u?.email || '',
+    city: u?.city || u?.village || details.city || details.village || '',
+    district: u?.district || details.district || '',
+    state: u?.state || details.state || 'Maharashtra',
+    pincode: u?.pincode || details.pincode || '',
+    avatar: u?.avatar || details.avatar || '🤝',
+    photoUrl: u?.photoUrl || details.photoUrl || null,
+    membersCount: Number(u?.membersCount || u?.totalMembers || details.totalMembers) || 0,
+    boardPresident: u?.boardPresident || u?.authPerson || details.authPerson || u?.name || '',
+    primaryCrops: u?.primaryCrops || details.primaryCrops || (Array.isArray(details.crops) ? details.crops.join(', ') : 'All Commodities'),
+    gstin: u?.gstin || details.gst || '',
+    pan: details.pan || '',
+    warehouseLocation: u?.warehouseLocation || details.warehouseLocation || (u?.district ? `${u.district} Storage Hub` : 'Storage Hub'),
+    storageCapacity: u?.storageCapacity || details.storageCapacity || '',
+    verified: true,
+    isDemo: false
+  };
+}
+
 export default function FpoDashboardNew({ user, onLogout, lang: appLang = 'en', setLang: appSetLang, t: propT }) {
   const lang = appLang || 'en';
   const setLang = appSetLang || (() => {});
@@ -1293,31 +1355,19 @@ export default function FpoDashboardNew({ user, onLogout, lang: appLang = 'en', 
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   const [fpoProfile, setFpoProfile] = useState(() => {
+    if (user) return resolveFpoProfile(user);
     try {
       const saved = localStorage.getItem('anaaj_fpo_profile');
-      if (saved) return JSON.parse(saved);
+      if (saved) return resolveFpoProfile(JSON.parse(saved));
     } catch (e) {}
-    return {
-      name: user?.name || 'Nashik District Farmer Producer Co.',
-      regNo: user?.regNo || 'MH-FPO-2024-9921',
-      phone: user?.phone || '+91 98231 99001',
-      email: user?.email || 'contact@nashikfpo.org',
-      city: 'Pimpalgaon Baswant',
-      district: 'Nashik',
-      state: 'Maharashtra',
-      pincode: '422209',
-      avatar: user?.avatar || '🤝',
-      photoUrl: null,
-      membersCount: 520,
-      boardPresident: 'Balasaheb Vikhe Patil',
-      primaryCrops: 'Red Onion, Grapes, Pomegranate, Lokwan Wheat',
-      gstin: '27AABCS9912F1Z8',
-      pan: 'AABCS9912F',
-      warehouseLocation: 'Dindori MIDC CA Storage Hub',
-      storageCapacity: '4,500 MT',
-      verified: true
-    };
+    return resolveFpoProfile(null);
   });
+
+  useEffect(() => {
+    if (user) {
+      setFpoProfile(resolveFpoProfile(user));
+    }
+  }, [user]);
 
   const handleUpdateFpoProfile = (newProfile) => {
     setFpoProfile(newProfile);
@@ -1345,7 +1395,7 @@ export default function FpoDashboardNew({ user, onLogout, lang: appLang = 'en', 
   const renderSection = () => {
     switch (activeSection) {
       case 'dashboard': return <DashboardOverview farmers={farmers} onNavigate={setActiveSection} />;
-      case 'farmers': return <ManageFarmersView onFarmersChange={setFarmers} />;
+      case 'farmers': return <ManageFarmersView onFarmersChange={setFarmers} user={user} />;
       case 'aggregation': return <CropAggregationView user={user} t={t} />;
       case 'market': return <FpoMarketPrices t={t} lang={lang} />;
       case 'ai-storage': 
@@ -1449,9 +1499,14 @@ export default function FpoDashboardNew({ user, onLogout, lang: appLang = 'en', 
         <header className="h-16 bg-white border-b border-slate-100 flex items-center px-4 lg:px-6 shadow-sm justify-between">
            <div className="flex items-center gap-4">
               <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-500"><Menu className="w-6 h-6" /></button>
-              <div className="hidden sm:block relative w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input placeholder="Search farmers, lots..." className="w-full pl-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400" />
+              <div className="flex items-center gap-2">
+                <span className="text-sm sm:text-base font-extrabold text-slate-800 capitalize">
+                  FPO Federation Desk
+                </span>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                  Aggregator Portal
+                </span>
               </div>
            </div>
            <div className="flex items-center gap-3">

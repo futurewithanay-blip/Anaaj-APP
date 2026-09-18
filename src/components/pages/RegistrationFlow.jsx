@@ -1644,19 +1644,44 @@ export default function RegistrationFlow({ onComplete, onBack, initialRole = '',
 
   const handleGoToDashboard = async (basic, role, rd) => {
     const chosenRole = role || 'farmer';
+    const cleanPhone = String(basic.mobile).replace(/\D/g, '');
+    const userLocation = [rd.village, rd.block, rd.district, rd.state].filter(Boolean).join(', ') 
+      || [rd.city, rd.district, rd.state].filter(Boolean).join(', ') 
+      || rd.district || rd.state || 'India';
+
     const user = {
       name: basic.name,
       phone: basic.mobile,
       email: basic.email,
+      password: basic.password,
       role: chosenRole,
-      location: rd.district || rd.city || 'Nashik, Maharashtra',
+      location: userLocation,
+      village: rd.village || rd.city || '',
+      district: rd.district || rd.city || '',
       state: rd.state || 'Maharashtra',
+      pincode: rd.pincode || '',
       photoPreview: basic.photoPreview,
+      photoUrl: basic.photoPreview || null,
+      avatar: basic.photoPreview || (chosenRole === 'fpo' ? '🏢' : chosenRole === 'buyer' ? '🏢' : '👨‍🌾'),
+      isDemo: false, // Clean flag indicating a real registered account
+      details: {
+        ...rd,
+        password: basic.password
+      },
       ...(chosenRole === 'farmer' ? {
-        primaryCrop: rd.primaryCrop || 'Wheat',
-        landArea: rd.landArea || '5',
+        primaryCrop: rd.primaryCrop || (rd.crops && rd.crops[0]) || '',
+        primaryCrops: (rd.crops && rd.crops.length > 0) ? rd.crops.join(', ') : (rd.primaryCrop || ''),
+        landArea: rd.landArea || '',
+        landSize: rd.landArea ? `${rd.landArea} ${rd.landUnit || 'Acre'}` : '',
         landUnit: rd.landUnit || 'Acre',
+        cultivatedArea: rd.cultivatedArea ? `${rd.cultivatedArea} ${rd.landUnit || 'Acre'}` : '',
         farmingType: rd.farmingType || 'Natural',
+        kisanId: `KCC-IND-${cleanPhone.slice(-6)}`,
+        bankName: rd.bankName === 'Other Bank' ? (rd.otherBankName || '') : (rd.bankName || ''),
+        accountMasked: rd.bankAccountNumber ? `•••• •••• ${rd.bankAccountNumber.slice(-4)}` : '',
+        ifsc: rd.bankIfsc || '',
+        mandiReg: `${rd.district || 'District'} APMC Registered`,
+        aadhaarVerified: Boolean(rd.isAadhaarVerified || rd.aadharNumber),
         bankDetails: {
           accountHolderName: rd.bankHolderName || basic.name,
           bankName: rd.bankName === 'Other Bank' ? (rd.otherBankName || 'Other Bank') : (rd.bankName || ''),
@@ -1669,23 +1694,54 @@ export default function RegistrationFlow({ onComplete, onBack, initialRole = '',
           bankPassbookDoc: rd.bankPassbookDoc || null,
         }
       } : {}),
-      ...(chosenRole === 'fpo' ? { fpoName: rd.name || 'Sahyadri Farmers Producer Co.', totalMembers: rd.totalMembers || '350' } : {}),
-      ...(chosenRole === 'buyer' ? { businessName: rd.businessName || 'Kisan Agro Traders', buyerType: rd.buyerType || 'Wholesaler' } : {}),
+      ...(chosenRole === 'fpo' ? {
+        fpoName: rd.name || basic.name,
+        name: rd.name || basic.name,
+        totalMembers: rd.totalMembers || '0',
+        membersCount: Number(rd.totalMembers) || 0,
+        regNo: rd.regNo || '',
+        boardPresident: rd.authPerson || basic.name,
+        primaryCrops: (rd.crops && rd.crops.length > 0) ? rd.crops.join(', ') : 'All Commodities',
+        gstin: rd.gst || '',
+        verified: true,
+      } : {}),
+      ...(chosenRole === 'buyer' ? {
+        businessName: rd.businessName || basic.name,
+        name: rd.businessName || basic.name,
+        buyerType: rd.buyerType || 'Wholesaler',
+        gst: rd.gst || '',
+        contactPerson: rd.contactPerson || basic.name,
+        cropsInterested: (rd.crops && rd.crops.length > 0) ? rd.crops.join(', ') : 'All Crops',
+        verified: true,
+      } : {}),
     };
+
+    // Cache to role-specific storage so dashboard immediately picks up the exact registered values
+    try {
+      if (chosenRole === 'farmer') localStorage.setItem('anaaj_farmer_profile', JSON.stringify(user));
+      else if (chosenRole === 'fpo') localStorage.setItem('anaaj_fpo_profile', JSON.stringify(user));
+      else if (chosenRole === 'buyer') localStorage.setItem('anaaj_buyer_profile', JSON.stringify(user));
+    } catch (e) {}
 
     // Save profile directly into Supabase user_profiles
     try {
       await authService.registerUser({
+        ...user,
         phone: user.phone,
         name: user.name,
         email: user.email,
+        password: basic.password,
         role: user.role,
-        village: rd.village || rd.city || 'Yeola',
-        district: rd.district || 'Nashik',
-        state: user.state || 'Maharashtra',
-        pincode: rd.pincode || '',
-        avatar: user.photoPreview || (chosenRole === 'fpo' ? '🏢' : chosenRole === 'buyer' ? '🏢' : '👨‍🌾'),
-        details: rd
+        village: user.village,
+        district: user.district,
+        state: user.state,
+        pincode: user.pincode,
+        avatar: user.avatar,
+        details: {
+          ...rd,
+          ...user,
+          password: basic.password
+        }
       });
     } catch (e) {
       console.warn('[RegistrationFlow] registerUser error:', e);

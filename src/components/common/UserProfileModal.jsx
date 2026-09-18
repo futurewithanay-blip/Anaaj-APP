@@ -151,21 +151,21 @@ export default function UserProfileModal({
 
               <div>
                 <h3 className="text-xl sm:text-2xl font-black font-heading leading-tight">
-                  {formData.name}
+                  {formData.name || (role === 'farmer' ? 'Kisan Member' : role === 'fpo' ? 'FPO Producer' : 'Agri Buyer')}
                 </h3>
                 <p className="text-xs text-white/80 mt-0.5 flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5" />
                   <span>
-                    {role === 'farmer' && `${formData.village || 'Yeola'}, ${formData.district || 'Nashik'}, ${formData.state || 'Maharashtra'}`}
-                    {role === 'fpo' && `${formData.city || 'Pimpalgaon'}, ${formData.district || 'Nashik'} • ${formData.regNo}`}
-                    {role === 'buyer' && `${formData.address || formData.district || 'Pune'} • GST: ${formData.gst}`}
+                    {role === 'farmer' && ([formData.village, formData.district, formData.state].filter(Boolean).join(', ') || (formData.isDemo ? 'Yeola, Nashik, Maharashtra' : 'India'))}
+                    {role === 'fpo' && ([formData.city || formData.village, formData.district, formData.state].filter(Boolean).join(', ') || (formData.isDemo ? 'Pimpalgaon, Nashik' : 'India'))}
+                    {role === 'buyer' && ([formData.address || formData.district, formData.state].filter(Boolean).join(', ') || (formData.isDemo ? 'Pune, Maharashtra' : 'India'))}
                   </span>
                 </p>
                 <div className="flex items-center gap-2 mt-2">
                   <span className="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-md">
-                    {role === 'farmer' && `Farmer ID: ${formData.kisanId || 'MH-4412'}`}
-                    {role === 'fpo' && `${formData.membersCount || 520} Farmer Members`}
-                    {role === 'buyer' && `Trust Score: 99% Verified`}
+                    {role === 'farmer' && `Farmer ID: ${formData.kisanId || (formData.isDemo ? 'KCC-MH-4412' : `KCC-IND-${(formData.phone || '').slice(-4)}`)}`}
+                    {role === 'fpo' && `${formData.membersCount || (formData.isDemo ? 520 : 0)} Farmer Members`}
+                    {role === 'buyer' && (formData.gst ? `GST: ${formData.gst}` : (formData.isDemo ? 'Verified Corporate Buyer' : 'Registered Buyer'))}
                   </span>
                 </div>
               </div>
@@ -308,7 +308,7 @@ export default function UserProfileModal({
                       className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   ) : (
-                    <p className="text-sm font-bold text-slate-800">{formData.phone || '+91 98231 45678'}</p>
+                    <p className="text-sm font-bold text-slate-800">{formData.phone || (formData.isDemo ? '+91 98231 45678' : '')}</p>
                   )}
                 </div>
 
@@ -322,7 +322,7 @@ export default function UserProfileModal({
                       className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   ) : (
-                    <p className="text-sm font-bold text-slate-800">{formData.email || 'info@anaaj.org'}</p>
+                    <p className="text-sm font-bold text-slate-800">{formData.email || (formData.isDemo ? 'info@anaaj.org' : 'Not provided')}</p>
                   )}
                 </div>
 
@@ -336,7 +336,7 @@ export default function UserProfileModal({
                       className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   ) : (
-                    <p className="text-sm font-bold text-slate-800">{formData.district || 'Nashik'}</p>
+                    <p className="text-sm font-bold text-slate-800">{formData.district || (formData.isDemo ? 'Nashik' : 'Not provided')}</p>
                   )}
                 </div>
 
@@ -352,7 +352,7 @@ export default function UserProfileModal({
                       className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   ) : (
-                    <p className="text-sm font-bold text-slate-800">{formData.village || formData.address || formData.city || 'Yeola'}</p>
+                    <p className="text-sm font-bold text-slate-800">{formData.village || formData.address || formData.city || (formData.isDemo ? 'Yeola' : 'Not provided')}</p>
                   )}
                 </div>
 
@@ -368,13 +368,15 @@ export default function UserProfileModal({
                       />
                       <input
                         type="text"
-                        value={formData.pincode || '423401'}
+                        value={formData.pincode || ''}
                         onChange={(e) => handleChange('pincode', e.target.value)}
                         className="w-1/3 text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
                   ) : (
-                    <p className="text-sm font-bold text-slate-800">{formData.state || 'Maharashtra'} - {formData.pincode || '423401'}</p>
+                    <p className="text-sm font-bold text-slate-800">
+                      {formData.state || 'Maharashtra'}{formData.pincode ? ` - ${formData.pincode}` : ''}
+                    </p>
                   )}
                 </div>
               </div>
@@ -400,7 +402,7 @@ export default function UserProfileModal({
                         className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none"
                       />
                     ) : (
-                      <p className="text-sm font-bold text-slate-800">{formData.landSize || '8.5 Acres (Irrogated)'}</p>
+                      <p className="text-sm font-bold text-slate-800">{formData.landSize || (formData.isDemo ? '8.5 Acres' : 'Not specified')}</p>
                     )}
                   </div>
 
@@ -409,12 +411,12 @@ export default function UserProfileModal({
                     {isEditing ? (
                       <input
                         type="text"
-                        value={formData.primaryCrops || ''}
+                        value={formData.primaryCrops || formData.crops || ''}
                         onChange={(e) => handleChange('primaryCrops', e.target.value)}
                         className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none"
                       />
                     ) : (
-                      <p className="text-sm font-bold text-slate-800">{formData.primaryCrops || 'Onion, Sharbati Wheat, Soybean'}</p>
+                      <p className="text-sm font-bold text-slate-800">{formData.primaryCrops || formData.crops || (formData.isDemo ? 'Onion, Wheat, Soybean' : 'Not specified')}</p>
                     )}
                   </div>
 
@@ -428,7 +430,7 @@ export default function UserProfileModal({
                         className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none"
                       />
                     ) : (
-                      <p className="text-sm font-bold text-slate-800">{formData.mandiReg || 'Lasalgaon APMC #K-4412'}</p>
+                      <p className="text-sm font-bold text-slate-800">{formData.mandiReg || (formData.isDemo ? 'Lasalgaon APMC #K-4412' : `${formData.district || 'District'} APMC Registered`)}</p>
                     )}
                   </div>
 
@@ -454,7 +456,7 @@ export default function UserProfileModal({
                         className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none"
                       />
                     ) : (
-                      <p className="text-sm font-bold text-slate-800">{formData.regNo || 'MH-FPO-2024-9921'}</p>
+                      <p className="text-sm font-bold text-slate-800">{formData.regNo || (formData.isDemo ? 'MH-FPO-2024-9921' : 'Not specified')}</p>
                     )}
                   </div>
 
@@ -468,7 +470,7 @@ export default function UserProfileModal({
                         className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none"
                       />
                     ) : (
-                      <p className="text-sm font-bold text-slate-800">{formData.membersCount || 520} Farmers Registered</p>
+                      <p className="text-sm font-bold text-slate-800">{formData.membersCount || (formData.isDemo ? 520 : 0)} Farmers Registered</p>
                     )}
                   </div>
 
@@ -482,7 +484,7 @@ export default function UserProfileModal({
                         className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none"
                       />
                     ) : (
-                      <p className="text-sm font-bold text-slate-800">{formData.boardPresident || 'Balasaheb Vikhe Patil'}</p>
+                      <p className="text-sm font-bold text-slate-800">{formData.boardPresident || (formData.isDemo ? 'Balasaheb Vikhe Patil' : 'Not specified')}</p>
                     )}
                   </div>
 
@@ -496,7 +498,7 @@ export default function UserProfileModal({
                         className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none"
                       />
                     ) : (
-                      <p className="text-sm font-bold text-slate-800">{formData.warehouseLocation || 'Dindori CA Storage Hub (4,500 MT)'}</p>
+                      <p className="text-sm font-bold text-slate-800">{formData.warehouseLocation || (formData.isDemo ? 'Dindori CA Storage Hub (4,500 MT)' : 'Not specified')}</p>
                     )}
                   </div>
                 </div>
@@ -514,7 +516,7 @@ export default function UserProfileModal({
                         className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none"
                       />
                     ) : (
-                      <p className="text-sm font-bold text-slate-800 font-mono">{formData.gst || '27AAXXX0000X1Z5'}</p>
+                      <p className="text-sm font-bold text-slate-800 font-mono">{formData.gst || (formData.isDemo ? '27AAXXX0000X1Z5' : 'Not provided')}</p>
                     )}
                   </div>
 
@@ -528,7 +530,7 @@ export default function UserProfileModal({
                         className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none"
                       />
                     ) : (
-                      <p className="text-sm font-bold text-slate-800 font-mono">{formData.fssai || '10022022000451'}</p>
+                      <p className="text-sm font-bold text-slate-800 font-mono">{formData.fssai || (formData.isDemo ? '10022022000451' : 'Not provided')}</p>
                     )}
                   </div>
 
@@ -542,7 +544,7 @@ export default function UserProfileModal({
                         className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none"
                       />
                     ) : (
-                      <p className="text-sm font-bold text-slate-800">{formData.businessType || 'Food Processor & Bulk Exporter'}</p>
+                      <p className="text-sm font-bold text-slate-800">{formData.businessType || (formData.isDemo ? 'Food Processor & Bulk Exporter' : 'Agri Commodity Buyer')}</p>
                     )}
                   </div>
 
@@ -556,7 +558,7 @@ export default function UserProfileModal({
                         className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none"
                       />
                     ) : (
-                      <p className="text-sm font-bold text-slate-800">{formData.procurementCapacity || '2,500 Tonnes / Month'}</p>
+                      <p className="text-sm font-bold text-slate-800">{formData.procurementCapacity || (formData.isDemo ? '2,500 Tonnes / Month' : 'As per requirement')}</p>
                     )}
                   </div>
                 </div>
@@ -592,13 +594,15 @@ export default function UserProfileModal({
                       className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none"
                     />
                   ) : (
-                    <p className="text-sm font-bold text-slate-800">{formData.bankName || 'State Bank of India (SBI)'}</p>
+                    <p className="text-sm font-bold text-slate-800">{formData.bankName || (formData.isDemo ? 'State Bank of India (SBI)' : 'Not linked')}</p>
                   )}
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-500 mb-1">Account Number (Masked)</label>
-                  <p className="text-sm font-mono font-bold text-slate-800">{formData.accountMasked || '•••• •••• 4321'}</p>
+                  <p className="text-sm font-mono font-bold text-slate-800">
+                    {formData.accountMasked || (formData.accountNumber ? `•••• •••• ${formData.accountNumber.slice(-4)}` : (formData.isDemo ? '•••• •••• 4321' : 'Not linked'))}
+                  </p>
                 </div>
 
                 <div>
@@ -611,7 +615,7 @@ export default function UserProfileModal({
                       className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none"
                     />
                   ) : (
-                    <p className="text-sm font-mono font-bold text-slate-800">{formData.ifsc || 'SBIN0004123'}</p>
+                    <p className="text-sm font-mono font-bold text-slate-800">{formData.ifsc || (formData.isDemo ? 'SBIN0004123' : 'Not linked')}</p>
                   )}
                 </div>
 

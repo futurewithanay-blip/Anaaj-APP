@@ -2217,23 +2217,18 @@ function BuyerProfileView({ user }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN BUYER DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function BuyerDashboardNew({ user, onLogout, lang: appLang = 'en', setLang: appSetLang, t: propT }) {
-  const lang = appLang || 'en';
-  const setLang = appSetLang || (() => {});
-  const t = propT || translations[lang] || translations.en;
-  const [activeSection, setActiveSection] = useState('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [headerSearch, setHeaderSearch] = useState('');
+function resolveBuyerProfile(u) {
+  const isDemoUser = Boolean(
+    u?.isDemo === true ||
+    u?.phone === '9876543210' ||
+    u?.phone === '+91 98231 00001' ||
+    u?.phone === '9823100001'
+  );
 
-  const [buyerProfile, setBuyerProfile] = useState(() => {
-    try {
-      const saved = localStorage.getItem('anaaj_buyer_profile');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
+  if (isDemoUser) {
     return {
-      name: user?.name || 'Sahyadri Agro Processing Ltd',
-      gst: user?.gst || '27AAXXX0000X1Z5',
+      name: u?.name || 'Sahyadri Agro Processing Ltd',
+      gst: u?.gst || '27AAXXX0000X1Z5',
       pan: 'AAXXX0000X',
       fssai: '10022022000451',
       phone: '+91 98231 00001',
@@ -2249,9 +2244,60 @@ export default function BuyerDashboardNew({ user, onLogout, lang: appLang = 'en'
       procurementCapacity: '2,500 Tonnes / Month',
       deliveryHubs: 'Pune Chakan Hub, Vashi Navi Mumbai Terminal',
       verified: true,
-      trustScore: '99%'
+      trustScore: '99%',
+      isDemo: true
     };
+  }
+
+  const details = u?.details || {};
+  const cleanPhone = String(u?.phone || '').replace(/\D/g, '');
+
+  return {
+    name: u?.name || u?.businessName || details.businessName || 'Registered Enterprise Buyer',
+    gst: u?.gst || details.gst || '',
+    pan: details.pan || '',
+    fssai: details.fssai || '',
+    phone: u?.phone || (cleanPhone ? `+91 ${cleanPhone.slice(-10)}` : ''),
+    email: u?.email || '',
+    address: u?.address || u?.village || details.address || details.village || '',
+    district: u?.district || details.district || '',
+    state: u?.state || details.state || 'Maharashtra',
+    pincode: u?.pincode || details.pincode || '',
+    avatar: u?.avatar || details.avatar || '🏢',
+    photoUrl: u?.photoUrl || details.photoUrl || null,
+    businessType: u?.buyerType || details.buyerType || 'Agri Commodity Buyer / Processor',
+    annualTurnover: details.annualTurnover || '',
+    procurementCapacity: details.procurementCapacity || '',
+    deliveryHubs: details.deliveryHubs || (u?.district ? `${u.district} Delivery Hub` : 'Main Distribution Center'),
+    verified: true,
+    trustScore: '99%',
+    isDemo: false
+  };
+}
+
+export default function BuyerDashboardNew({ user, onLogout, lang: appLang = 'en', setLang: appSetLang, t: propT }) {
+  const lang = appLang || 'en';
+  const setLang = appSetLang || (() => {});
+  const t = propT || translations[lang] || translations.en;
+  const [activeSection, setActiveSection] = useState('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [headerSearch, setHeaderSearch] = useState('');
+
+  const [buyerProfile, setBuyerProfile] = useState(() => {
+    if (user) return resolveBuyerProfile(user);
+    try {
+      const saved = localStorage.getItem('anaaj_buyer_profile');
+      if (saved) return resolveBuyerProfile(JSON.parse(saved));
+    } catch (e) {}
+    return resolveBuyerProfile(null);
   });
+
+  useEffect(() => {
+    if (user) {
+      setBuyerProfile(resolveBuyerProfile(user));
+    }
+  }, [user]);
 
   const handleUpdateBuyerProfile = (newProfile) => {
     setBuyerProfile(newProfile);
@@ -2388,23 +2434,14 @@ export default function BuyerDashboardNew({ user, onLogout, lang: appLang = 'en'
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-500">
               <Menu className="w-6 h-6" />
             </button>
-            <div className="hidden sm:flex items-center relative w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input 
-                value={headerSearch}
-                onChange={e => setHeaderSearch(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    navigate('find-crops');
-                  }
-                }}
-                placeholder="Search crops, farmers, orders..." 
-                className="w-full pl-9 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none" 
-              />
-              <VoiceInputMic onResult={val => {
-                setHeaderSearch(val);
-                navigate('find-crops');
-              }} type="text" />
+            <div className="flex items-center gap-2">
+              <span className="text-sm sm:text-base font-extrabold text-slate-800 capitalize">
+                Buyer Procurement Portal
+              </span>
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                Institutional Network
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-3">

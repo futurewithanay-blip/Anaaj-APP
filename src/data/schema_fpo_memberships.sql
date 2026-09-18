@@ -1,3 +1,6 @@
+
+
+
 -- ============================================================================
 -- anaaj: FPO Membership & Follow/Join Request Architecture
 -- Dialect: PostgreSQL (Supabase / Neon / AWS RDS compatible)

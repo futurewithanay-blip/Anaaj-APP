@@ -25,6 +25,7 @@ import UserProfileModal from '../common/UserProfileModal';
 import FarmerBuyerReviews from '../panels/FarmerPanel/FarmerBuyerReviews';
 import FpoMembershipManager from '../common/FpoMembershipManager';
 import VoiceInputMic from '../common/VoiceInputMic';
+import NearbyMandiFinder from '../common/NearbyMandiFinder';
 import { createCropListing, fetchCropListings, fetchMarketBids, updateBidStatus } from '../../services/supabaseClient';
 
 // ─── Sample Data ───────────────────────────────────────────────────────────────
@@ -523,38 +524,24 @@ function DashboardOverview({ user, crops = CROPS, offers = OFFERS, offerStatusMa
         <SummaryCard icon={Leaf} label="Total Crops" value={totalCrops} sub={`${activeLots} active • ${pendingCrops} pending`} color="bg-emerald-500" trend={12} onClick={() => nav('crops')} />
         <SummaryCard icon={Package} label="Active Lots" value={activeLots} sub="Live on platform" color="bg-blue-500" trend={5} onClick={() => nav('crops')} />
         <SummaryCard icon={ShoppingBag} label="Buyer Offers" value={pendingOffers} sub={`${acceptedOffers} accepted`} color="bg-amber-500" trend={22} onClick={() => nav('offers')} />
-        <SummaryCard icon={CreditCard} label="Payments" value={paymentStats?.totalReceivedFormatted ? paymentStats.totalReceivedFormatted.split(' ')[0] : '₹3.54L'} sub={`${paymentStats?.receivedCount || 3} credited • Live`} color="bg-rose-500" trend={18} onClick={() => nav('payments')} />
+        <SummaryCard 
+          icon={CreditCard} 
+          label="Payments" 
+          value={paymentStats?.totalReceivedFormatted ? paymentStats.totalReceivedFormatted.split(' ')[0] : ((user?.isDemo || user?.phone === '9876543210') ? '₹3.54L' : '₹0')} 
+          sub={(user?.isDemo || user?.phone === '9876543210') ? `${paymentStats?.receivedCount || 3} credited • Live` : `${paymentStats?.receivedCount || 0} credited`} 
+          color="bg-rose-500" 
+          trend={18} 
+          onClick={() => nav('payments')} 
+        />
         <SummaryCard icon={TrendingUp} label="Live Mandi" value="₹2,580" sub="Onion • Lasalgaon" color="bg-purple-500" trend={8} onClick={() => nav('market')} />
       </div>
 
-      {/* Quick Access Icon Grid */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-        <h3 className="font-black text-slate-700 text-sm mb-4">⚡ Quick Access</h3>
-        <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-10 gap-3">
-          {[
-            { icon: Leaf, label: 'My Crops', section: 'crops', color: 'bg-emerald-100 text-emerald-700' },
-            { icon: TrendingUp, label: 'Market', section: 'market', color: 'bg-blue-100 text-blue-700' },
-            { icon: Sparkles, label: 'AI Storage', section: 'ai-storage', color: 'bg-emerald-100 text-emerald-800' },
-            { icon: BarChart3, label: 'AI Forecast', section: 'ai-price', color: 'bg-indigo-100 text-indigo-700' },
-            { icon: MapPin, label: 'Best Mandi', section: 'best-market', color: 'bg-purple-100 text-purple-700' },
-            { icon: ShoppingBag, label: 'Offers', section: 'offers', color: 'bg-amber-100 text-amber-700' },
-            { icon: CreditCard, label: 'Payments', section: 'payments', color: 'bg-rose-100 text-rose-700' },
-            { icon: Star, label: 'Rate Buyers', section: 'reviews', color: 'bg-amber-100 text-amber-800' },
-            { icon: Truck, label: 'Logistics', section: 'logistics', color: 'bg-orange-100 text-orange-700' },
-            { icon: CloudSun, label: 'Weather', section: 'weather', color: 'bg-sky-100 text-sky-700' },
-            { icon: HelpCircle, label: 'Help', section: 'help', color: 'bg-slate-100 text-slate-700' },
-          ].map(({ icon: Ic, label, section, color }) => (
-            <button
-              key={section}
-              onClick={() => nav(section)}
-              className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl ${color} hover:opacity-80 transition-all hover:scale-105 cursor-pointer`}
-            >
-              <Ic className="w-5 h-5" />
-              <span className="text-[10px] font-bold text-center leading-tight">{label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Live GPS Nearby Mandis & Price Discovery Widget */}
+      <NearbyMandiFinder 
+        userProfile={user} 
+        defaultCrop={crops[0]?.name ? crops[0].name.toLowerCase() : 'onion'} 
+        onSelectMandi={() => nav('market')} 
+      />
 
       {/* My Crops */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -763,60 +750,6 @@ function DashboardOverview({ user, crops = CROPS, offers = OFFERS, offerStatusMa
           </div>
         </div>
       </div>
-
-      {/* Buyer Ratings Banner Card */}
-      <div className="bg-gradient-to-r from-emerald-800 to-green-800 rounded-2xl p-5 text-white shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-amber-400/20 border border-amber-300/30 flex items-center justify-center shrink-0">
-            <Star className="w-6 h-6 text-amber-300 fill-amber-300" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-black text-base text-white">⭐ Reviews & Ratings (Rate Your Buyers)</h3>
-              <span className="text-[10px] font-black bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full">
-                3 Pending Deals
-              </span>
-            </div>
-            <p className="text-xs text-emerald-100 mt-1">
-              Rate Reliance Fresh, BigBasket & Godrej on <strong>Payment Reliability</strong>, <strong>Fair Dealing</strong> & <strong>Timely Pickup</strong>.
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => onNavigate && onNavigate('reviews')}
-          className="px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl transition shrink-0 flex items-center gap-1.5 shadow-sm cursor-pointer"
-        >
-          <span>Rate Buyers Now</span>
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Connect to Nearby FPO Quick Banner */}
-      <div className="bg-gradient-to-r from-amber-900 via-amber-800 to-orange-900 rounded-2xl p-5 text-white shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
-            <Building2 className="w-6 h-6 text-amber-300" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-black text-base text-white">🏢 Connect to Nearby FPOs (किसान उत्पादक संगठन से जुड़ें)</h3>
-              <span className="text-[10px] font-black bg-emerald-400 text-slate-950 px-2 py-0.5 rounded-full">
-                +₹120/Qtl Premium
-              </span>
-            </div>
-            <p className="text-xs text-amber-100 mt-1 max-w-2xl">
-              Search certified FPOs in your district (Sahyadri, Marathwada, Malwa), pool small lots into bulk consignments, and send real-time membership join requests.
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => onNavigate && onNavigate('fpo')}
-          className="px-5 py-2.5 bg-harvest-500 hover:bg-harvest-400 text-slate-950 font-black text-xs rounded-xl transition shrink-0 flex items-center gap-1.5 shadow-sm cursor-pointer hover:scale-[1.02]"
-        >
-          <span>Find & Join FPOs</span>
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
     </div>
   );
 }
@@ -997,8 +930,19 @@ function BuyerOffersFull({ offers = OFFERS, offerStatusMap = {}, onOfferAction, 
         </p>
       </div>
 
-      <div className="space-y-4">
-        {offers.map(o => {
+      {offers.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-dashed border-slate-200 p-12 text-center shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3 text-2xl shadow-inner">
+            🤝
+          </div>
+          <h3 className="text-slate-800 font-bold text-base">No Buyer Offers Received Yet</h3>
+          <p className="text-slate-400 text-xs mt-1.5 max-w-md mx-auto leading-relaxed">
+            Once you list your crop lots in <strong>My Crops</strong>, institutional buyers and food processors across India will place direct farmgate bids here.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {offers.map(o => {
           const currentStatus = offerStatusMap[o.id];
           return (
             <div key={o.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
@@ -1055,6 +999,7 @@ function BuyerOffersFull({ offers = OFFERS, offerStatusMap = {}, onOfferAction, 
           );
         })}
       </div>
+      )}
     </div>
   );
 }
@@ -1519,6 +1464,66 @@ function FarmerBuyerChat({ t, user }) {
   );
 }
 
+// Helper to resolve farmer profile from session user without leaking demo defaults to registered users
+function resolveFarmerProfile(u) {
+  const isDemoUser = Boolean(
+    u?.isDemo === true ||
+    u?.phone === '9876543210' ||
+    u?.phone === '+91 98231 45678' ||
+    u?.phone === '9823145678'
+  );
+
+  if (isDemoUser) {
+    return {
+      name: u?.name || 'Dnyaneshwar Patil',
+      phone: u?.phone || '+91 98231 45678',
+      email: u?.email || 'dnyaneshwar.patil@kisan.in',
+      village: u?.village || 'Yeola',
+      district: u?.district || 'Nashik',
+      state: u?.state || 'Maharashtra',
+      pincode: u?.pincode || '423401',
+      avatar: u?.avatar || '👨‍🌾',
+      photoUrl: u?.photoUrl || null,
+      landSize: u?.landSize || '8.5 Acres (Irrigated)',
+      primaryCrops: u?.primaryCrops || u?.crops || 'Red Onion, Sharbati Wheat, Soybean',
+      kisanId: u?.kisanId || 'MH-NSK-2024-8841',
+      bankName: u?.bankName || 'State Bank of India (Yeola Branch)',
+      accountMasked: u?.accountMasked || '•••• •••• 4321',
+      ifsc: u?.ifsc || 'SBIN0004123',
+      mandiReg: u?.mandiReg || 'Lasalgaon APMC #K-4412',
+      aadhaarVerified: true,
+      isDemo: true
+    };
+  }
+
+  // Real registered user: strictly use their entered registration data
+  const details = u?.details || {};
+  const cleanPhone = String(u?.phone || '').replace(/\D/g, '');
+  const bankAcc = u?.bankDetails?.accountNumber || details.bankAccountNumber || u?.accountNumber || '';
+  const bankMasked = bankAcc ? `•••• •••• ${bankAcc.slice(-4)}` : (u?.accountMasked || 'Not linked');
+
+  return {
+    name: u?.name || 'Registered Farmer',
+    phone: u?.phone || (cleanPhone ? `+91 ${cleanPhone.slice(-10)}` : ''),
+    email: u?.email || '',
+    village: u?.village || details.village || '',
+    district: u?.district || details.district || '',
+    state: u?.state || details.state || 'Maharashtra',
+    pincode: u?.pincode || details.pincode || '',
+    avatar: u?.avatar || details.avatar || '👨‍🌾',
+    photoUrl: u?.photoUrl || u?.photoPreview || details.photoPreview || null,
+    landSize: u?.landSize || details.landSize || (details.landArea ? `${details.landArea} ${details.landUnit || 'Acre'}` : 'Not specified'),
+    primaryCrops: u?.primaryCrops || u?.crops || details.primaryCrops || (Array.isArray(details.crops) ? details.crops.join(', ') : 'Not specified'),
+    kisanId: u?.kisanId || details.kisanId || (cleanPhone ? `KCC-IND-${cleanPhone.slice(-4)}` : 'KCC-IND-REG'),
+    bankName: u?.bankName || u?.bankDetails?.bankName || details.bankName || 'Not linked',
+    accountMasked: bankMasked,
+    ifsc: u?.ifsc || u?.bankDetails?.ifscCode || details.bankIfsc || 'Not linked',
+    mandiReg: u?.mandiReg || details.mandiReg || (u?.district ? `${u.district} APMC Registered` : 'Registered APMC'),
+    aadhaarVerified: Boolean(u?.aadhaarVerified ?? details.isAadhaarVerified ?? details.aadharNumber),
+    isDemo: false
+  };
+}
+
 // ─── Main Dashboard Component ─────────────────────────────────────────────────
 export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en', setLang: appSetLang, t: propT }) {
   const lang = appLang || 'en';
@@ -1527,11 +1532,41 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
   const [activeSection, setActiveSection] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [cropsList, setCropsList] = useState(CROPS);
-  const [offersList, setOffersList] = useState(OFFERS);
+
+  const isDemo = Boolean(
+    user?.isDemo === true ||
+    user?.phone === '9876543210' ||
+    user?.phone === '+91 98231 45678' ||
+    user?.phone === '9823145678'
+  );
+
+  const [farmerProfile, setFarmerProfile] = useState(() => {
+    if (user) return resolveFarmerProfile(user);
+    try {
+      const saved = localStorage.getItem('anaaj_farmer_profile');
+      if (saved) return resolveFarmerProfile(JSON.parse(saved));
+    } catch (e) {}
+    return resolveFarmerProfile(null);
+  });
+
+  // Re-sync farmer profile whenever user changes
+  useEffect(() => {
+    if (user) {
+      setFarmerProfile(resolveFarmerProfile(user));
+    }
+  }, [user]);
+
+  // Real registered users start with their own empty lists; demo users get sample data
+  const [cropsList, setCropsList] = useState(() => (isDemo ? CROPS : []));
+  const [offersList, setOffersList] = useState(() => (isDemo ? OFFERS : []));
   const [offerStatusMap, setOfferStatusMap] = useState({});
   const [negotiatingOffer, setNegotiatingOffer] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
+
+  useEffect(() => {
+    setCropsList(isDemo ? CROPS : []);
+    setOffersList(isDemo ? OFFERS : []);
+  }, [isDemo]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1542,26 +1577,35 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
           fetchMarketBids()
         ]);
         if (isMounted) {
+          const cleanUserPhone = String(user?.phone || '').replace(/\D/g, '').slice(-10);
+
           if (liveCrops && liveCrops.length > 0) {
-            const mappedCrops = liveCrops.map(l => ({
-              id: l.id,
-              supabaseId: l.id,
-              name: l.crop_name,
-              variety: l.variety || 'Standard',
-              qty: `${l.quantity_qtl} Quintal`,
-              price: `₹${Number(l.base_price_per_qtl).toLocaleString()}/q`,
-              harvest: new Date(l.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
-              status: l.status === 'ACTIVE' ? 'Active' : l.status === 'SOLD' ? 'Sold' : 'Pending',
-              grade: l.quality_grade || 'Grade A',
-              location: `${l.district || 'Nashik'}, ${l.state || 'MH'}`,
-              image: l.image_url || null,
-              image_url: l.image_url || null,
-              isLiveSupabase: true
-            }));
-            setCropsList(prev => {
-              const liveIds = new Set(mappedCrops.map(c => c.id));
-              return [...mappedCrops, ...prev.filter(p => !liveIds.has(p.id))];
-            });
+            const relevantCrops = isDemo
+              ? liveCrops
+              : liveCrops.filter(l => String(l.phone || '').replace(/\D/g, '').slice(-10) === cleanUserPhone);
+
+            if (relevantCrops.length > 0) {
+              const mappedCrops = relevantCrops.map(l => ({
+                id: l.id,
+                supabaseId: l.id,
+                name: l.crop_name,
+                variety: l.variety || 'Standard',
+                qty: `${l.quantity_qtl} Quintal`,
+                price: `₹${Number(l.base_price_per_qtl).toLocaleString()}/q`,
+                harvest: new Date(l.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+                status: l.status === 'ACTIVE' ? 'Active' : l.status === 'SOLD' ? 'Sold' : 'Pending',
+                grade: l.quality_grade || 'Grade A',
+                location: `${l.district || farmerProfile.district || 'Nashik'}, ${l.state || 'MH'}`,
+                image: l.image_url || null,
+                image_url: l.image_url || null,
+                isLiveSupabase: true
+              }));
+              setCropsList(prev => {
+                if (!isDemo) return mappedCrops;
+                const liveIds = new Set(mappedCrops.map(c => c.id));
+                return [...mappedCrops, ...prev.filter(p => !liveIds.has(p.id))];
+              });
+            }
           }
 
           if (liveBids && liveBids.length > 0) {
@@ -1579,6 +1623,7 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
               isLiveSupabase: true
             }));
             setOffersList(prev => {
+              if (!isDemo) return mappedBids;
               const bidIds = new Set(mappedBids.map(b => b.id));
               return [...mappedBids, ...prev.filter(p => !bidIds.has(p.id))];
             });
@@ -1590,33 +1635,7 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
     }
     loadData();
     return () => { isMounted = false; };
-  }, []);
-
-  const [farmerProfile, setFarmerProfile] = useState(() => {
-    try {
-      const saved = localStorage.getItem('anaaj_farmer_profile');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return {
-      name: user?.name || 'Dnyaneshwar Patil',
-      phone: user?.phone || '+91 98231 45678',
-      email: user?.email || 'dnyaneshwar.patil@kisan.in',
-      village: user?.village || 'Yeola',
-      district: user?.district || 'Nashik',
-      state: 'Maharashtra',
-      pincode: '423401',
-      avatar: user?.avatar || '👨‍🌾',
-      photoUrl: null,
-      landSize: '8.5 Acres (Irrigated)',
-      primaryCrops: 'Red Onion, Sharbati Wheat, Soybean',
-      kisanId: 'MH-NSK-2024-8841',
-      bankName: 'State Bank of India (Yeola Branch)',
-      accountMasked: '•••• •••• 4321',
-      ifsc: 'SBIN0004123',
-      mandiReg: 'Lasalgaon APMC #K-4412',
-      aadhaarVerified: true
-    };
-  });
+  }, [isDemo, user?.phone]);
 
   const handleUpdateFarmerProfile = (newProfile) => {
     setFarmerProfile(newProfile);
@@ -1857,18 +1876,15 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
             <Menu className="w-6 h-6" />
           </button>
 
-          {/* Search */}
-          <div className="flex-1 max-w-md">
-            <div className="relative flex items-center">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search crops, markets, buyers…"
-                className="w-full pl-9 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
-              />
-              <VoiceInputMic onResult={setSearchQuery} type="text" />
-            </div>
+          {/* Active Section Title & Status */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm sm:text-base font-extrabold text-slate-800 capitalize">
+              {navItems.find(i => i.id === activeSection)?.label || 'Dashboard Overview'}
+            </span>
+            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Live Mandi Feed
+            </span>
           </div>
 
           <div className="flex items-center gap-3 ml-auto">

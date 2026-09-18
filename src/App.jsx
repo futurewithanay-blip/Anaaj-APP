@@ -54,6 +54,14 @@ export default function App() {
       else if (role === 'fpo') setCurrentView('fpo-dash');
       else if (role === 'buyer') setCurrentView('buyer-dash');
     }
+
+    const handleOpenRegister = (e) => {
+      const targetRole = e.detail?.role || '';
+      setRegisterInitialRole(targetRole);
+      setCurrentView('register-flow');
+    };
+    window.addEventListener('anaaj-open-register', handleOpenRegister);
+    return () => window.removeEventListener('anaaj-open-register', handleOpenRegister);
   }, []);
 
   // Wrapper for view navigation to handle "My Dashboard" logic

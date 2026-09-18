@@ -7,6 +7,7 @@ import {
   verifyAuthOtp,
   upsertUserProfile,
   fetchUserProfile,
+  loginWithPassword,
   isSupabaseConfigured
 } from './supabaseClient';
 
@@ -59,8 +60,74 @@ class AuthService {
   }
 
   /**
-   * Request an OTP for a phone number
-   * Generates a 4-digit code and stores it in Supabase `auth_otps`
+   * Log in with Phone/Email + Password
+   * Denies access if not registered or password wrong
+   */
+  async loginWithCredentials(identifier, password, role = null) {
+    const res = await loginWithPassword(identifier, password, role);
+    if (res.success && res.user) {
+      this.setCurrentUser(res.user, role || res.user.role);
+    }
+    return res;
+  }
+
+  /**
+   * Quick Preview Demo Login
+   */
+  loginAsDemo(role = 'farmer') {
+    let demoUser = null;
+    if (role === 'farmer') {
+      demoUser = {
+        id: 'DEMO-FARMER-9876543210',
+        name: 'Dnyaneshwar Patil',
+        phone: '9876543210',
+        role: 'farmer',
+        village: 'Yeola',
+        district: 'Nashik',
+        state: 'Maharashtra',
+        pincode: '423401',
+        landAreaAcres: 8.5,
+        primaryCrops: 'Onion, Wheat, Soybean',
+        soilType: 'Black Cotton Clay',
+        irrigationSource: 'Well & Canal Drip',
+        kccLimit: 300000,
+        isDemo: true
+      };
+    } else if (role === 'fpo') {
+      demoUser = {
+        id: 'DEMO-FPO-9822011223',
+        name: 'Sahyadri Agro FPO',
+        phone: '9822011223',
+        role: 'fpo',
+        fpoName: 'Sahyadri Agro Farmers Producer Co. Ltd.',
+        regNumber: 'U01403MH2018PTC309812',
+        memberCount: 520,
+        district: 'Nashik',
+        state: 'Maharashtra',
+        primaryCrops: 'Grapes, Onion, Tomato',
+        isDemo: true
+      };
+    } else {
+      demoUser = {
+        id: 'DEMO-BUYER-9811099887',
+        name: 'ITC Agri Procurement Hub',
+        phone: '9811099887',
+        role: 'buyer',
+        businessName: 'ITC Agri Business Division',
+        buyerType: 'Corporate Processor',
+        gst: '27AABCI1234F1Z8',
+        district: 'Indore Hub',
+        state: 'Madhya Pradesh',
+        cropsInterested: 'Wheat, Soybean, Mustard',
+        isDemo: true
+      };
+    }
+    this.setCurrentUser(demoUser, role);
+    return { success: true, user: demoUser };
+  }
+
+  /**
+   * Request an OTP for a phone number (Used during registration)
    */
   async sendOtp(phone, role = 'farmer') {
     if (!phone || String(phone).replace(/\D/g, '').length < 10) {
@@ -70,8 +137,7 @@ class AuthService {
   }
 
   /**
-   * Verify an OTP against Supabase `auth_otps`
-   * On success, fetches/creates profile from `user_profiles` and sets session
+   * Verify an OTP against Supabase auth_otps
    */
   async verifyOtp(phone, otpCode, role = 'farmer') {
     if (!otpCode || String(otpCode).trim().length < 4) {
@@ -85,7 +151,7 @@ class AuthService {
   }
 
   /**
-   * Register a user with full profile and persist to Supabase `user_profiles`
+   * Register a user with full profile and persist to Supabase user_profiles
    */
   async registerUser(profileData) {
     const result = await upsertUserProfile(profileData);
