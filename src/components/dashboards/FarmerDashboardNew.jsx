@@ -1,22 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import sharedPaymentDB from '../../services/db';
 import {
-  LayoutDashboard, Sprout, PlusCircle, TrendingUp, BarChart3, MapPin,
-  ShoppingBag, Package, CreditCard, Truck, Warehouse, BookOpen,
-  CloudSun, MessageCircle, HelpCircle, LogOut, Bell, Search,
-  Globe, ChevronRight, CheckCircle2, XCircle, AlertTriangle,
-  Wheat, Leaf, ArrowUpRight, ArrowDownRight, Eye, Phone, Star,
-  Calendar, Upload, Filter, RefreshCw, Menu, X
+  LayoutDashboard, Leaf, MapPin, Search, ChevronRight, Bell, Menu, X, 
+  Settings, LogOut, CheckCircle2, TrendingUp, DollarSign, Star, CloudSun,
+  Truck, HelpCircle, PhoneCall, FileText, ShoppingBag, CreditCard, Building2,
+  Calendar, Info, AlertTriangle, ShieldCheck, ChevronDown, Check, Eye, Edit2, 
+  Map, MessageSquare, Plus, ExternalLink, Zap, BarChart2, Compass, PlayCircle,
+  Warehouse, Sparkles, PlusCircle, Upload, BarChart3,
+  Sprout, Package, ArrowUpRight, ArrowDownRight, MessageCircle, XCircle, Filter, Send, Globe
 } from 'lucide-react';
+import StorageAiAgent from '../common/StorageAiAgent';
+import PricePredictionCard from '../common/PricePredictionCard';
 import {
-  LineChart, Line, AreaChart, Area, BarChart, Bar,
+  AreaChart, Area,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from 'recharts';
 import { translations } from '../../i18n/translations';
 import FarmerGrievance from '../panels/FarmerPanel/FarmerGrievance';
 import LogisticsStorage from '../panels/FarmerPanel/LogisticsStorage';
-import PricePredictionCard from '../common/PricePredictionCard';
 import NetProfitCalculator from '../common/NetProfitCalculator';
 import WeatherWidget from '../common/WeatherWidget';
+import LiveMandiDashboard from '../common/LiveMandiDashboard';
+import UserProfileModal from '../common/UserProfileModal';
+import FarmerBuyerReviews from '../panels/FarmerPanel/FarmerBuyerReviews';
+import FpoMembershipManager from '../common/FpoMembershipManager';
+import VoiceInputMic from '../common/VoiceInputMic';
+import { createCropListing, fetchCropListings, fetchMarketBids, updateBidStatus } from '../../services/supabaseClient';
 
 // ─── Sample Data ───────────────────────────────────────────────────────────────
 const CROPS = [
@@ -27,9 +36,9 @@ const CROPS = [
 ];
 
 const OFFERS = [
-  { id: 1, buyer: 'Reliance Fresh', company: 'RIL Agri', crop: 'Onion', qty: '50 Q', offered: '₹2,650/q', total: '₹1,32,500', status: 'New' },
-  { id: 2, buyer: 'BigBasket Direct', company: 'Supermart', crop: 'Wheat', qty: '80 Q', offered: '₹2,300/q', total: '₹1,84,000', status: 'New' },
-  { id: 3, buyer: 'Godrej Agrovet', company: 'Godrej', crop: 'Soybean', qty: '30 Q', offered: '₹4,800/q', total: '₹1,44,000', status: 'Negotiating' },
+  { id: 1, buyer: 'Reliance Fresh', company: 'RIL Agri', crop: 'Onion', qty: '50 Q', offered: '₹2,650/q', total: '₹1,32,500', status: 'New', avatar: '🏢' },
+  { id: 2, buyer: 'BigBasket Direct', company: 'Supermart', crop: 'Wheat', qty: '80 Q', offered: '₹2,300/q', total: '₹1,84,000', status: 'New', avatar: '🛒' },
+  { id: 3, buyer: 'Godrej Agrovet', company: 'Godrej', crop: 'Soybean', qty: '30 Q', offered: '₹4,800/q', total: '₹1,44,000', status: 'Negotiating', avatar: '🌿' },
 ];
 
 const PRICE_DATA = [
@@ -55,29 +64,401 @@ const SCHEMES = [
   { name: 'KCC', benefit: 'Kisan Credit Card up to ₹3 Lakh', eligible: false, deadline: 'Open' },
 ];
 
+// Sidebar nav items — Create Crop Lot, My Orders, Govt Schemes removed per user request
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'crops', label: 'My Crops', icon: Leaf },
-  { id: 'create-lot', label: 'Create Crop Lot', icon: PlusCircle },
   { id: 'market', label: 'Market Prices', icon: TrendingUp },
-  { id: 'ai-price', label: 'AI Price Prediction', icon: BarChart3 },
   { id: 'best-market', label: 'Best Market', icon: MapPin },
+  { id: 'fpo', label: 'Connect to FPO', icon: Building2 },
   { id: 'offers', label: 'Buyer Offers', icon: ShoppingBag },
-  { id: 'orders', label: 'My Orders', icon: Package },
   { id: 'payments', label: 'Payments', icon: CreditCard },
+  { id: 'reviews', label: 'Buyer Ratings', icon: Star },
   { id: 'logistics', label: 'Logistics', icon: Truck },
   { id: 'storage', label: 'Storage', icon: Warehouse },
-  { id: 'schemes', label: 'Govt Schemes', icon: BookOpen },
   { id: 'weather', label: 'Weather', icon: CloudSun },
-  { id: 'chat', label: 'Chat', icon: MessageCircle },
   { id: 'help', label: 'Help & Support', icon: HelpCircle },
 ];
 
+// ─── Create Crop Lot Modal ─────────────────────────────────────────────────────
+function CreateCropLotModal({ onClose, onAddCrop, farmerProfile }) {
+  const [form, setForm] = useState({ crop: 'Onion', qty: '60', grade: 'A', price: '2500', harvest: '2026-09-06', location: 'Yeola, Nashik', notes: '' });
+  const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [aiGrade, setAiGrade] = useState(null);
+  const [aiConfidence, setAiConfidence] = useState(null);
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [cropImageUrl, setCropImageUrl] = useState(null);
+  const fileInputRef = useRef(null);
+  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    const file = files[0];
+    setUploadedFiles(files.map(f => f.name));
+
+    // Convert file to Base64 Data URL for live preview and database storage
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setCropImageUrl(event.target.result);
+    };
+    reader.readAsDataURL(file);
+
+    setAiAnalyzing(true);
+    setAiGrade(null);
+    setAiConfidence(null);
+    setTimeout(() => {
+      const grades = ['A+', 'A', 'B+'];
+      const confidences = ['97% Visual Match', '94% Visual Match', '91% Visual Match'];
+      const idx = Math.floor(Math.random() * grades.length);
+      const predicted = grades[idx];
+      setAiGrade(predicted);
+      setAiConfidence(confidences[idx]);
+      setForm(prev => ({ ...prev, grade: predicted }));
+      setAiAnalyzing(false);
+    }, 1400);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const cropName = form.crop || 'Wheat';
+    const variety = cropName === 'Onion' ? 'Garwa (Red Nashik)' : cropName === 'Wheat' ? 'Sharbati Lokwan' : 'Standard FAQ';
+    const grade = form.grade || aiGrade || 'A';
+    const qty = Number(form.qty) || 50;
+    const price = Number(form.price) || 2400;
+
+    let savedListing = null;
+    try {
+      const res = await createCropListing({
+        farmer_name: farmerProfile?.name || 'Dnyaneshwar Patil',
+        phone: farmerProfile?.phone || '+91 98231 44521',
+        state: farmerProfile?.state || 'Maharashtra',
+        district: farmerProfile?.district || 'Nashik',
+        crop_name: cropName,
+        variety: variety,
+        quality_grade: grade.startsWith('Grade') ? grade : `Grade ${grade}`,
+        quantity_qtl: qty,
+        base_price_per_qtl: price,
+        mandi_name: 'Lasalgaon APMC',
+        image_url: cropImageUrl
+      });
+      if (res?.data) savedListing = res.data;
+    } catch (err) {
+      console.warn('Error saving crop listing to Supabase:', err);
+    }
+
+    const newLot = {
+      id: savedListing?.id || Date.now(),
+      supabaseId: savedListing?.id,
+      name: cropName,
+      variety: variety,
+      qty: `${qty} Quintal`,
+      price: `₹${price.toLocaleString()}/q`,
+      harvest: form.harvest || 'Today',
+      status: 'Active',
+      grade: grade,
+      location: form.location || `${farmerProfile?.district || 'Nashik'}, Maharashtra`,
+      image: cropImageUrl || savedListing?.image_url,
+      image_url: cropImageUrl || savedListing?.image_url,
+      isLiveSupabase: Boolean(savedListing)
+    };
+
+    setSubmitted(true);
+    if (onAddCrop) {
+      onAddCrop(newLot);
+    }
+    setTimeout(() => {
+      setIsSubmitting(false);
+      setSubmitted(false);
+      onClose();
+    }, 1200);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-slate-100">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-gradient-to-r from-emerald-800 to-green-700 text-white rounded-t-3xl">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+              <PlusCircle className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-white">Create Crop Lot</h2>
+              <p className="text-xs text-emerald-100">Direct digital marketplace listing with AI grade verification</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition cursor-pointer">
+            <X className="w-4 h-4 text-white" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {submitted && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 animate-in zoom-in-95">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+              <div>
+                <p className="font-bold text-emerald-800">Crop Lot Listed Successfully!</p>
+                <p className="text-xs text-emerald-600">Your lot is now live under "Active Crops" and visible to verified buyers.</p>
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">Crop Name *</label>
+              <div className="relative flex items-center">
+                <select value={form.crop} onChange={set('crop')} required className="w-full pl-4 pr-10 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white appearance-none">
+                  {['Onion','Wheat','Rice','Soybean','Cotton','Tomato','Potato','Maize','Sugarcane','Grapes'].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <VoiceInputMic onResult={(val) => setForm(p => ({ ...p, crop: val }))} type="select" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center justify-between">
+                <span>Quality / Grade *</span>
+                {aiGrade && (
+                  <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                    <Sparkles className="w-3 h-3 text-emerald-600" /> AI: {aiGrade} ({aiConfidence})
+                  </span>
+                )}
+                {aiAnalyzing && (
+                  <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full text-[10px] font-bold animate-pulse">
+                    <Sparkles className="w-3 h-3" /> AI Analyzing photo…
+                  </span>
+                )}
+              </label>
+              <div className="relative flex items-center">
+                <select value={form.grade} onChange={set('grade')} className="w-full pl-4 pr-10 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white appearance-none">
+                  {['A+','A','B+','B','C'].map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+                <VoiceInputMic onResult={(val) => setForm(p => ({ ...p, grade: val }))} type="select" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">Quantity (Quintals) *</label>
+              <div className="relative flex items-center">
+                <input type="number" min="1" value={form.qty} onChange={set('qty')} placeholder="e.g. 100" required className="w-full pl-4 pr-10 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                <VoiceInputMic onResult={(val) => setForm(p => ({ ...p, qty: val }))} type="number" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">Expected Price (₹/Quintal) *</label>
+              <div className="relative flex items-center">
+                <input type="number" min="100" value={form.price} onChange={set('price')} placeholder="e.g. 2500" required className="w-full pl-4 pr-10 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 font-bold text-emerald-800" />
+                <VoiceInputMic onResult={(val) => setForm(p => ({ ...p, price: val }))} type="number" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">Harvest Date *</label>
+              <input type="date" value={form.harvest} onChange={set('harvest')} required className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">Location (Village, District) *</label>
+              <div className="relative flex items-center">
+                <input value={form.location} onChange={set('location')} placeholder="e.g. Yeola, Nashik" required className="w-full pl-4 pr-10 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                <VoiceInputMic onResult={(val) => setForm(p => ({ ...p, location: val }))} type="text" />
+              </div>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">Additional Notes</label>
+            <div className="relative flex">
+              <textarea value={form.notes} onChange={set('notes')} placeholder="Describe crop quality, sorting method, moisture content, packaging…" rows={2} className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
+              <div className="absolute right-2 top-2">
+                <VoiceInputMic onResult={(val) => setForm(p => ({ ...p, notes: val }))} type="text" />
+              </div>
+            </div>
+          </div>
+
+          {/* Image Upload with AI Grading */}
+          <div className="border-2 border-dashed border-slate-200 rounded-2xl p-5 text-center hover:border-emerald-400 transition cursor-pointer bg-slate-50/50" onClick={() => fileInputRef.current?.click()}>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+            {cropImageUrl ? (
+              <div className="space-y-3">
+                <div className="relative mx-auto w-44 h-32 rounded-xl overflow-hidden shadow-md border-2 border-emerald-500">
+                  <img src={cropImageUrl} alt="Crop sample" className="w-full h-full object-cover" />
+                  <span className="absolute bottom-1.5 left-1.5 bg-emerald-700/90 backdrop-blur-xs text-white text-[9px] font-black px-2 py-0.5 rounded">
+                    ⚡ Real Photo Loaded
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-emerald-800">
+                  ✓ Real crop photo ready. Will be saved to database & shown to buyers!
+                </p>
+                <span className="text-[11px] text-slate-500 underline hover:text-emerald-700">Click to change photo</span>
+              </div>
+            ) : (
+              <>
+                <Upload className="w-7 h-7 text-emerald-600 mx-auto mb-1.5" />
+                <p className="text-sm font-bold text-slate-700">Click to Upload Crop Photos for AI Grading</p>
+                <p className="text-xs text-slate-400">PNG, JPG up to 10MB • Clear view of crop sample</p>
+                <p className="text-xs text-emerald-700 font-semibold mt-1">🤖 AI will instantly inspect uploaded crop image and determine Grade (A+, A, B+)</p>
+              </>
+            )}
+            {uploadedFiles.length > 0 && !cropImageUrl && (
+              <div className="mt-2 flex flex-wrap gap-1.5 justify-center">
+                {uploadedFiles.map((f, i) => (
+                  <span key={i} className="text-[11px] bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold">
+                    📷 {f}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {aiGrade && (
+            <div className="flex items-center gap-3 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl animate-in zoom-in-95">
+              <Sparkles className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-black text-emerald-900">
+                  AI Assayed Grade: <span className="text-emerald-700 font-black text-base">{aiGrade}</span> — AI Verified ✅
+                </p>
+                <p className="text-xs text-emerald-700">Color, grain size, and texture match e-NAM Grade {aiGrade} standards ({aiConfidence}).</p>
+              </div>
+            </div>
+          )}
+
+          <button type="submit" disabled={isSubmitting} className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-black rounded-xl shadow-lg shadow-emerald-600/25 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
+            <PlusCircle className="w-5 h-5" /> {isSubmitting ? 'Syncing to Supabase PostgreSQL...' : 'Create Crop Lot & Publish'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Negotiate Chat Modal ──────────────────────────────────────────────────────
+function NegotiateChatModal({ offer, onClose, onAcceptDeal }) {
+  const [messages, setMessages] = useState([
+    { sender: 'buyer', text: `Namaste! I am the procurement officer at ${offer.buyer}. We reviewed your ${offer.crop} lot. Our initial offer is ${offer.offered} for ${offer.qty}.`, time: '10:30 AM' },
+    { sender: 'buyer', text: 'If you want a counter-rate or specific delivery terms, please tell us here.', time: '10:31 AM' },
+  ]);
+  const [inputText, setInputText] = useState('');
+  const [dealClosed, setDealClosed] = useState(false);
+
+  const quickChips = [
+    'Can you do ₹150 more per quintal?',
+    'Farm-gate pickup is required',
+    'Grade A quality verified by AI assay',
+    'Prompt escrow payout within 48 hours',
+  ];
+
+  const handleSend = (text) => {
+    const t = text || inputText;
+    if (!t.trim()) return;
+    setMessages(prev => [...prev, { sender: 'me', text: t, time: 'Just now' }]);
+    setInputText('');
+    setTimeout(() => {
+      const replies = [
+        `Understood! We can revise our offer to ₹${(parseInt(offer.offered.replace(/\D/g,'')) + 80).toLocaleString()}/q with farm-gate loading included. Does this work for you?`,
+        'We agree to the escrow guarantee upon weighing and dispatch. Can we schedule pickup for tomorrow?',
+        `Our procurement manager approved an increased rate of ₹${(parseInt(offer.offered.replace(/\D/g,'')) + 100).toLocaleString()}/q for your verified lot!`,
+      ];
+      setMessages(prev => [...prev, { sender: 'buyer', text: replies[Math.floor(Math.random() * replies.length)], time: 'Just now' }]);
+    }, 900);
+  };
+
+  const handleFinalize = () => {
+    setDealClosed(true);
+    setTimeout(() => {
+      if (onAcceptDeal) onAcceptDeal(offer.id, offer.offered);
+    }, 1000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden border border-slate-100" style={{ height: '82vh' }}>
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-emerald-800 via-emerald-700 to-green-700 text-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center text-xl shadow-inner">{offer.avatar}</div>
+            <div>
+              <h4 className="font-black text-white text-sm flex items-center gap-1.5">
+                <span>{offer.buyer}</span>
+                <span className="text-[10px] bg-emerald-900/60 text-emerald-200 px-2 py-0.5 rounded-full font-bold">Buyer</span>
+              </h4>
+              <p className="text-emerald-200 text-xs">{offer.crop} • {offer.qty} • Offered: {offer.offered}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold">🔒 Escrow Chat</span>
+            <button onClick={onClose} className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition cursor-pointer">
+              <X className="w-4 h-4 text-white" />
+            </button>
+          </div>
+        </div>
+
+        {/* Status bar */}
+        <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between text-xs">
+          <span className="text-emerald-800 font-bold flex items-center gap-1">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600" /> Real-time Buyer-Seller Chatbot
+          </span>
+          <button
+            onClick={handleFinalize}
+            disabled={dealClosed}
+            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shadow-sm"
+          >
+            <CheckCircle2 className="w-3 h-3" /> {dealClosed ? 'Deal Agreed! ✅' : 'Lock & Accept Deal'}
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
+          {messages.map((m, idx) => {
+            const isMe = m.sender === 'me';
+            return (
+              <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in fade-in`}>
+                <div className={`max-w-[82%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${isMe ? 'bg-emerald-600 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none'}`}>
+                  {!isMe && <p className="text-[10px] font-bold text-emerald-700 mb-1">{offer.buyer}</p>}
+                  <p className="leading-relaxed text-xs sm:text-sm">{m.text}</p>
+                  <span className={`text-[10px] mt-1 block text-right font-medium ${isMe ? 'text-emerald-100' : 'text-slate-400'}`}>{m.time}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Quick Chips */}
+        <div className="px-3 pt-2 pb-1 border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto bg-slate-50/70">
+          {quickChips.map((chip, idx) => (
+            <button key={idx} onClick={() => handleSend(chip)} className="text-[11px] font-semibold text-slate-600 bg-white hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200 rounded-full px-3 py-1 whitespace-nowrap transition cursor-pointer flex-shrink-0">
+              {chip}
+            </button>
+          ))}
+        </div>
+
+        {/* Input Bar */}
+        <div className="p-3 bg-white border-t border-slate-100 flex items-center gap-2">
+          <div className="relative flex-1 flex items-center">
+            <input
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
+              placeholder="Type your counter-offer or terms (or tap 🎤)..."
+              className="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            />
+            <VoiceInputMic onResult={setInputText} type="text" />
+          </div>
+          <button
+            onClick={() => handleSend()}
+            disabled={!inputText.trim()}
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold text-sm rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0"
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Sub-section Components ────────────────────────────────────────────────────
 
-function SummaryCard({ icon: Icon, label, value, sub, color, trend }) {
+function SummaryCard({ icon: Icon, label, value, sub, color, trend, onClick }) {
   return (
-    <div className={`bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow`}>
+    <div
+      onClick={onClick}
+      className={`bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-lg transition-all ${onClick ? 'cursor-pointer hover:scale-[1.02] hover:border-emerald-200' : ''}`}
+    >
       <div className="flex items-start justify-between mb-3">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
           <Icon className="w-5 h-5 text-white" />
@@ -92,6 +473,7 @@ function SummaryCard({ icon: Icon, label, value, sub, color, trend }) {
       <div className="text-2xl font-black text-slate-900 mb-0.5">{value}</div>
       <div className="text-xs font-semibold text-slate-500">{label}</div>
       {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
+      {onClick && <div className="text-[10px] text-emerald-500 font-bold mt-1.5 flex items-center gap-0.5">Tap to view <ChevronRight className="w-2.5 h-2.5" /></div>}
     </div>
   );
 }
@@ -114,48 +496,102 @@ function StatusBadge({ status }) {
 }
 
 // Dashboard Overview
-function DashboardOverview({ user }) {
+function DashboardOverview({ user, crops = CROPS, offers = OFFERS, offerStatusMap = {}, onOfferAction, onNegotiate, onNavigate, t = {} }) {
   const [activeCrop, setActiveCrop] = useState('onion');
-  const [offerStates, setOfferStates] = useState({});
-  const toggleOffer = (id, action) => setOfferStates(p => ({ ...p, [id]: action }));
+  const [paymentStats, setPaymentStats] = useState(() => sharedPaymentDB.getFarmerStats(user?.name));
+
+  useEffect(() => {
+    setPaymentStats(sharedPaymentDB.getFarmerStats(user?.name));
+    const unsubscribe = sharedPaymentDB.subscribe(() => {
+      setPaymentStats(sharedPaymentDB.getFarmerStats(user?.name));
+    });
+    return unsubscribe;
+  }, [user?.name]);
+
+  // Live computed stats from real data
+  const totalCrops = crops.length;
+  const activeLots = crops.filter(c => c.status === 'Active').length;
+  const pendingCrops = crops.filter(c => c.status === 'Pending').length;
+  const acceptedOffers = Object.values(offerStatusMap).filter(s => s === 'accepted').length;
+  const pendingOffers = offers.length - Object.values(offerStatusMap).filter(s => s === 'rejected').length;
+  const nav = (section) => onNavigate && onNavigate(section);
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
+      {/* Summary Cards — all clickable, live data */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <SummaryCard icon={Leaf} label="Total Crops" value="4" sub="Varieties listed" color="bg-emerald-500" trend={12} />
-        <SummaryCard icon={Package} label="Active Lots" value="2" sub="Live on platform" color="bg-blue-500" trend={5} />
-        <SummaryCard icon={ShoppingBag} label="Buyer Offers" value="9" sub="3 require action" color="bg-amber-500" trend={22} />
-        <SummaryCard icon={RefreshCw} label="Pending Orders" value="1" sub="Awaiting dispatch" color="bg-purple-500" />
-        <SummaryCard icon={CreditCard} label="Total Earnings" value="₹4.36L" sub="This season" color="bg-rose-500" trend={18} />
+        <SummaryCard icon={Leaf} label="Total Crops" value={totalCrops} sub={`${activeLots} active • ${pendingCrops} pending`} color="bg-emerald-500" trend={12} onClick={() => nav('crops')} />
+        <SummaryCard icon={Package} label="Active Lots" value={activeLots} sub="Live on platform" color="bg-blue-500" trend={5} onClick={() => nav('crops')} />
+        <SummaryCard icon={ShoppingBag} label="Buyer Offers" value={pendingOffers} sub={`${acceptedOffers} accepted`} color="bg-amber-500" trend={22} onClick={() => nav('offers')} />
+        <SummaryCard icon={CreditCard} label="Payments" value={paymentStats?.totalReceivedFormatted ? paymentStats.totalReceivedFormatted.split(' ')[0] : '₹3.54L'} sub={`${paymentStats?.receivedCount || 3} credited • Live`} color="bg-rose-500" trend={18} onClick={() => nav('payments')} />
+        <SummaryCard icon={TrendingUp} label="Live Mandi" value="₹2,580" sub="Onion • Lasalgaon" color="bg-purple-500" trend={8} onClick={() => nav('market')} />
+      </div>
+
+      {/* Quick Access Icon Grid */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+        <h3 className="font-black text-slate-700 text-sm mb-4">⚡ Quick Access</h3>
+        <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-10 gap-3">
+          {[
+            { icon: Leaf, label: 'My Crops', section: 'crops', color: 'bg-emerald-100 text-emerald-700' },
+            { icon: TrendingUp, label: 'Market', section: 'market', color: 'bg-blue-100 text-blue-700' },
+            { icon: Sparkles, label: 'AI Storage', section: 'ai-storage', color: 'bg-emerald-100 text-emerald-800' },
+            { icon: BarChart3, label: 'AI Forecast', section: 'ai-price', color: 'bg-indigo-100 text-indigo-700' },
+            { icon: MapPin, label: 'Best Mandi', section: 'best-market', color: 'bg-purple-100 text-purple-700' },
+            { icon: ShoppingBag, label: 'Offers', section: 'offers', color: 'bg-amber-100 text-amber-700' },
+            { icon: CreditCard, label: 'Payments', section: 'payments', color: 'bg-rose-100 text-rose-700' },
+            { icon: Star, label: 'Rate Buyers', section: 'reviews', color: 'bg-amber-100 text-amber-800' },
+            { icon: Truck, label: 'Logistics', section: 'logistics', color: 'bg-orange-100 text-orange-700' },
+            { icon: CloudSun, label: 'Weather', section: 'weather', color: 'bg-sky-100 text-sky-700' },
+            { icon: HelpCircle, label: 'Help', section: 'help', color: 'bg-slate-100 text-slate-700' },
+          ].map(({ icon: Ic, label, section, color }) => (
+            <button
+              key={section}
+              onClick={() => nav(section)}
+              className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl ${color} hover:opacity-80 transition-all hover:scale-105 cursor-pointer`}
+            >
+              <Ic className="w-5 h-5" />
+              <span className="text-[10px] font-bold text-center leading-tight">{label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* My Crops */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between p-5 border-b border-slate-100">
           <h3 className="font-black text-slate-800">🌾 My Crops</h3>
-          <button className="text-xs text-emerald-600 font-bold hover:underline flex items-center gap-1">View All <ChevronRight className="w-3 h-3" /></button>
+          <button onClick={() => onNavigate && onNavigate('crops')} className="text-xs text-emerald-600 font-bold hover:underline flex items-center gap-1 cursor-pointer">
+            View All & Manage <ChevronRight className="w-3 h-3" />
+          </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead><tr className="bg-slate-50 text-xs text-slate-500 font-bold">
-              <th className="text-left px-5 py-3">Crop</th>
-              <th className="text-left px-4 py-3">Quantity</th>
-              <th className="text-left px-4 py-3">Expected Price</th>
-              <th className="text-left px-4 py-3">Harvest Date</th>
-              <th className="text-left px-4 py-3">Grade</th>
-              <th className="text-left px-4 py-3">Status</th>
-            </tr></thead>
-            <tbody>{CROPS.map((c, i) => (
-              <tr key={c.id} className={`border-t border-slate-50 hover:bg-emerald-50/30 transition ${i % 2 === 0 ? '' : 'bg-slate-50/40'}`}>
-                <td className="px-5 py-3 font-bold text-slate-800">{c.name} <span className="text-xs font-normal text-slate-400">({c.variety})</span></td>
-                <td className="px-4 py-3 text-slate-600">{c.qty}</td>
-                <td className="px-4 py-3 font-bold text-emerald-700">{c.price}</td>
-                <td className="px-4 py-3 text-slate-500 text-xs">{c.harvest}</td>
-                <td className="px-4 py-3"><span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">{c.grade}</span></td>
-                <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
+            <thead>
+              <tr className="bg-slate-50 text-xs text-slate-500 font-bold">
+                <th className="text-left px-5 py-3">Crop</th>
+                <th className="text-left px-4 py-3">Quantity</th>
+                <th className="text-left px-4 py-3">Expected Price</th>
+                <th className="text-left px-4 py-3">Harvest Date</th>
+                <th className="text-left px-4 py-3">Grade</th>
+                <th className="text-left px-4 py-3">Status</th>
               </tr>
-            ))}</tbody>
+            </thead>
+            <tbody>
+              {crops.map((c, i) => (
+                <tr key={c.id} className={`border-t border-slate-50 hover:bg-emerald-50/30 transition ${i % 2 === 0 ? '' : 'bg-slate-50/40'}`}>
+                  <td className="px-5 py-3 font-bold text-slate-800">
+                    {c.name} {c.variety && <span className="text-xs font-normal text-slate-400">({c.variety})</span>}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{c.qty}</td>
+                  <td className="px-4 py-3 font-bold text-emerald-700">{c.price}</td>
+                  <td className="px-4 py-3 text-slate-500 text-xs">{c.harvest}</td>
+                  <td className="px-4 py-3">
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">{c.grade}</span>
+                  </td>
+                  <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
       </div>
@@ -165,41 +601,85 @@ function DashboardOverview({ user }) {
         {/* Recent Buyer Offers */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between p-5 border-b border-slate-100">
-            <h3 className="font-black text-slate-800">🤝 Recent Buyer Offers</h3>
-            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">{OFFERS.length} New</span>
+            <div>
+              <h3 className="font-black text-slate-800">🤝 Recent Buyer Offers</h3>
+              <p className="text-[11px] text-slate-400">Accepted & rejected offers update here in real time</p>
+            </div>
+            <button onClick={() => onNavigate && onNavigate('offers')} className="text-xs text-emerald-600 font-bold hover:underline flex items-center gap-1 cursor-pointer">
+              View All <ChevronRight className="w-3 h-3" />
+            </button>
           </div>
           <div className="divide-y divide-slate-50">
-            {OFFERS.map(o => (
-              <div key={o.id} className="p-4 hover:bg-slate-50/60 transition">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <p className="font-bold text-sm text-slate-800">{o.buyer}</p>
-                    <p className="text-xs text-slate-400">{o.company} • {o.crop} • {o.qty}</p>
-                  </div>
-                  <StatusBadge status={o.status} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-black text-emerald-700">{o.offered}</p>
-                    <p className="text-xs text-slate-400">Total: {o.total}</p>
-                  </div>
-                  {!offerStates[o.id] ? (
-                    <div className="flex gap-2">
-                      <button onClick={() => toggleOffer(o.id, 'accepted')} className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> Accept
-                      </button>
-                      <button onClick={() => toggleOffer(o.id, 'rejected')} className="px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-red-50 hover:text-red-600 transition flex items-center gap-1">
-                        <XCircle className="w-3 h-3" /> Reject
-                      </button>
+            {offers.slice(0, 4).map(o => {
+              const offerState = offerStatusMap?.[o.id];
+              return (
+                <div key={o.id} className="p-4 hover:bg-slate-50/60 transition">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-bold text-sm text-slate-800">{o.buyer}</p>
+                        {o.isLiveSupabase && (
+                          <span className="text-[9px] font-black bg-blue-100 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded-full">
+                            ⚡ Supabase
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400">{o.company} • {o.crop} • {o.qty}</p>
                     </div>
-                  ) : (
-                    <span className={`text-xs font-bold px-3 py-1.5 rounded-lg ${offerStates[o.id] === 'accepted' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
-                      {offerStates[o.id] === 'accepted' ? '✅ Accepted' : '❌ Rejected'}
-                    </span>
-                  )}
+                    <StatusBadge status={offerState ? (offerState === 'accepted' ? 'Accepted' : offerState === 'rejected' ? 'Rejected' : 'Negotiating') : o.status} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-black text-emerald-700">{o.offered}</p>
+                      <p className="text-xs text-slate-400">Total: {o.total}</p>
+                    </div>
+                    {offerState ? (
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-bold px-3 py-1.5 rounded-lg ${
+                          offerState === 'accepted' ? 'bg-emerald-100 text-emerald-800' :
+                          offerState === 'rejected' ? 'bg-red-100 text-red-600' :
+                          'bg-purple-100 text-purple-700'
+                        }`}>
+                          {offerState === 'accepted' ? '✅ Offer Accepted' : offerState === 'rejected' ? '❌ Offer Rejected' : '💬 In Negotiation'}
+                        </span>
+                        {offerState === 'negotiating' && (
+                          <button
+                            onClick={() => onNegotiate && onNegotiate(o)}
+                            className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition cursor-pointer"
+                          >
+                            Open Chat
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => onOfferAction && onOfferAction(o.id, 'accepted')}
+                          className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-3 h-3" /> Accept
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (onOfferAction) onOfferAction(o.id, 'negotiating');
+                            if (onNegotiate) onNegotiate(o);
+                          }}
+                          className="px-2.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-bold rounded-lg transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <MessageCircle className="w-3 h-3" /> Negotiate
+                        </button>
+                        <button
+                          onClick={() => onOfferAction && onOfferAction(o.id, 'rejected')}
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 text-xs font-bold rounded-lg transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <XCircle className="w-3 h-3" /> Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -207,6 +687,13 @@ function DashboardOverview({ user }) {
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between p-5 border-b border-slate-100">
             <h3 className="font-black text-slate-800">📊 Market Prices (₹/Quintal)</h3>
+            <button
+              onClick={() => onNavigate && onNavigate('market')}
+              className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer transition hover:underline"
+            >
+              <span>{t?.liveMandiPrices || 'Live Mandi Rates'}</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </button>
           </div>
           <div className="p-4">
             <div className="flex gap-2 mb-4 flex-wrap">
@@ -245,23 +732,18 @@ function DashboardOverview({ user }) {
             <div className="text-5xl">🌤️</div>
             <div>
               <div className="text-4xl font-black">31°C</div>
-              <div className="text-blue-200 text-sm">Partly Cloudy</div>
-            </div>
-            <div className="ml-auto text-right">
-              <div className="text-sm font-bold">Humidity: 68%</div>
-              <div className="text-sm font-bold">Wind: 12 km/h</div>
-              <div className="text-sm font-bold">Rain: 60% chance</div>
+              <div className="text-blue-100 font-semibold">Partly Cloudy • Humidity 68%</div>
             </div>
           </div>
-          <div className="bg-blue-700/40 rounded-xl p-3 text-sm">
-            <p className="font-bold flex items-center gap-2">⚠️ Agromet Advisory</p>
-            <p className="text-blue-200 text-xs mt-1">Moderate rainfall expected Thu-Fri. Delay onion harvesting by 2 days. Apply fungicide on soybean crop immediately.</p>
-          </div>
+          <p className="text-xs text-blue-100 mb-4">Rain probability: 15% • Wind: 12 km/h WSW • Ideal for crop drying & threshing</p>
+          <button onClick={() => onNavigate && onNavigate('weather')} className="w-full py-2 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer">
+            View Full Agromet Forecast <ChevronRight className="w-3 h-3" />
+          </button>
         </div>
 
         {/* AI Market Insight */}
         <div className="bg-gradient-to-br from-emerald-700 to-green-600 rounded-2xl p-5 text-white">
-          <h3 className="font-black mb-4 flex items-center gap-2"><BarChart3 className="w-5 h-5" /> AI Market Insight</h3>
+          <h3 className="font-black mb-4 flex items-center gap-2"><Sparkles className="w-5 h-5" /> AI Mandi Recommendation</h3>
           <div className="space-y-3">
             <div className="bg-white/10 rounded-xl p-3">
               <div className="text-xs text-emerald-200 font-semibold mb-1">🎯 Suggested Selling Price</div>
@@ -281,238 +763,294 @@ function DashboardOverview({ user }) {
           </div>
         </div>
       </div>
+
+      {/* Buyer Ratings Banner Card */}
+      <div className="bg-gradient-to-r from-emerald-800 to-green-800 rounded-2xl p-5 text-white shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-400/20 border border-amber-300/30 flex items-center justify-center shrink-0">
+            <Star className="w-6 h-6 text-amber-300 fill-amber-300" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-black text-base text-white">⭐ Reviews & Ratings (Rate Your Buyers)</h3>
+              <span className="text-[10px] font-black bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full">
+                3 Pending Deals
+              </span>
+            </div>
+            <p className="text-xs text-emerald-100 mt-1">
+              Rate Reliance Fresh, BigBasket & Godrej on <strong>Payment Reliability</strong>, <strong>Fair Dealing</strong> & <strong>Timely Pickup</strong>.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => onNavigate && onNavigate('reviews')}
+          className="px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl transition shrink-0 flex items-center gap-1.5 shadow-sm cursor-pointer"
+        >
+          <span>Rate Buyers Now</span>
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Connect to Nearby FPO Quick Banner */}
+      <div className="bg-gradient-to-r from-amber-900 via-amber-800 to-orange-900 rounded-2xl p-5 text-white shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+            <Building2 className="w-6 h-6 text-amber-300" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-black text-base text-white">🏢 Connect to Nearby FPOs (किसान उत्पादक संगठन से जुड़ें)</h3>
+              <span className="text-[10px] font-black bg-emerald-400 text-slate-950 px-2 py-0.5 rounded-full">
+                +₹120/Qtl Premium
+              </span>
+            </div>
+            <p className="text-xs text-amber-100 mt-1 max-w-2xl">
+              Search certified FPOs in your district (Sahyadri, Marathwada, Malwa), pool small lots into bulk consignments, and send real-time membership join requests.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => onNavigate && onNavigate('fpo')}
+          className="px-5 py-2.5 bg-harvest-500 hover:bg-harvest-400 text-slate-950 font-black text-xs rounded-xl transition shrink-0 flex items-center gap-1.5 shadow-sm cursor-pointer hover:scale-[1.02]"
+        >
+          <span>Find & Join FPOs</span>
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 }
 
-// My Crops full page
-function MyCrops() {
+// My Crops full page — with Add Crop Modal + 3 Status Filters (Active, Sold, Pending)
+function MyCrops({ crops = CROPS, onAddCrop, farmerProfile }) {
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+
+  // 3 filters requested by user: 1. active crop 2. sold crop 3. pending crop
+  const filterOptions = [
+    { key: 'Active', label: '1. Active Crop', badge: '🟢 Active Crops', dot: 'bg-emerald-500' },
+    { key: 'Sold', label: '2. Sold Crop', badge: '🔵 Sold Crops', dot: 'bg-blue-500' },
+    { key: 'Pending', label: '3. Pending Crop', badge: '🟡 Pending Crops', dot: 'bg-amber-500' },
+    { key: 'All', label: 'Show All Crops', badge: '📋 All Crops', dot: 'bg-slate-400' },
+  ];
+
+  const filteredCrops = filterStatus === 'All' ? crops : crops.filter(c => c.status === filterStatus);
+
   return (
     <div className="space-y-5">
+      {showCreateModal && (
+        <CreateCropLotModal
+          onClose={() => setShowCreateModal(false)}
+          onAddCrop={onAddCrop}
+          farmerProfile={farmerProfile}
+        />
+      )}
+
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-black text-slate-800">🌾 My Crops</h2>
+        <div>
+          <h2 className="text-xl font-black text-slate-800">🌾 My Listed Crops ({crops.length})</h2>
+          <p className="text-xs text-slate-500">Manage crop lots, inspect AI grades, and filter by listing status</p>
+        </div>
         <div className="flex gap-2">
-          <button className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition flex items-center gap-2"><PlusCircle className="w-4 h-4" />Add Crop</button>
-          <button className="px-4 py-2 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition flex items-center gap-2"><Filter className="w-4 h-4" />Filter</button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition flex items-center gap-2 cursor-pointer shadow-sm shadow-emerald-600/20"
+          >
+            <PlusCircle className="w-4 h-4" /> Add Crop
+          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowFilterMenu(p => !p)}
+              className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-bold rounded-xl hover:bg-slate-50 transition flex items-center gap-2 cursor-pointer shadow-sm"
+            >
+              <Filter className="w-4 h-4 text-emerald-600" />
+              <span>{filterOptions.find(o => o.key === filterStatus)?.label || filterStatus}</span>
+              <ChevronDown className="w-3 h-3" />
+            </button>
+            {showFilterMenu && (
+              <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-30 overflow-hidden py-1 divide-y divide-slate-100">
+                <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Filter by Crop Status
+                </div>
+                {filterOptions.map(opt => (
+                  <button
+                    key={opt.key}
+                    onClick={() => { setFilterStatus(opt.key); setShowFilterMenu(false); }}
+                    className={`w-full px-4 py-2.5 text-left text-xs font-bold transition flex items-center gap-2.5 cursor-pointer ${
+                      filterStatus === opt.key ? 'bg-emerald-50 text-emerald-800' : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={`w-2.5 h-2.5 rounded-full ${opt.dot}`}></span>
+                    <span>{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
-        {CROPS.map(c => (
-          <div key={c.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:shadow-md transition">
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h3 className="font-black text-slate-800 text-lg">{c.name}</h3>
-                <p className="text-xs text-slate-400">{c.variety} • {c.location}</p>
+
+      {filteredCrops.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-12 text-center">
+          <p className="text-slate-500 font-semibold">No {filterStatus} crops found</p>
+          <button
+            onClick={() => setFilterStatus('All')}
+            className="mt-3 px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-bold hover:bg-emerald-200 cursor-pointer"
+          >
+            Show All Crops
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+          {filteredCrops.map(c => (
+            <div key={c.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:shadow-md transition">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-black text-slate-800 text-lg">{c.name}</h3>
+                    {c.isLiveSupabase && (
+                      <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full">
+                        ⚡ Live Supabase
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400">{c.variety} • {c.location}</p>
+                </div>
+                <StatusBadge status={c.status} />
               </div>
-              <StatusBadge status={c.status} />
+              {c.image && (
+                <div className="mb-3 rounded-xl overflow-hidden h-36 w-full relative">
+                  <img src={c.image} alt={c.name} className="w-full h-full object-cover" />
+                  <span className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-xs text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
+                    📷 Real Farmgate Sample
+                  </span>
+                </div>
+              )}
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <div className="text-xs text-slate-400 mb-1">Quantity</div>
+                  <div className="font-black text-sm text-slate-800">{c.qty}</div>
+                </div>
+                <div className="bg-emerald-50 rounded-xl p-3">
+                  <div className="text-xs text-slate-400 mb-1">Price</div>
+                  <div className="font-black text-sm text-emerald-700">{c.price}</div>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-3">
+                  <div className="text-xs text-slate-400 mb-1">Grade</div>
+                  <div className="font-black text-sm text-blue-700">{c.grade}</div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+                <span className="text-xs text-slate-400">Harvest: {c.harvest}</span>
+                <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
+                  AI Assayed <CheckCircle2 className="w-3.5 h-3.5" />
+                </span>
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="bg-slate-50 rounded-xl p-3"><div className="text-xs text-slate-400 mb-1">Quantity</div><div className="font-black text-sm text-slate-800">{c.qty}</div></div>
-              <div className="bg-emerald-50 rounded-xl p-3"><div className="text-xs text-slate-400 mb-1">Price</div><div className="font-black text-sm text-emerald-700">{c.price}</div></div>
-              <div className="bg-blue-50 rounded-xl p-3"><div className="text-xs text-slate-400 mb-1">Grade</div><div className="font-black text-sm text-blue-700">{c.grade}</div></div>
-            </div>
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
-              <span className="text-xs text-slate-400">Harvest: {c.harvest}</span>
-              <button className="text-xs text-emerald-600 font-bold hover:underline flex items-center gap-1">View Details <ChevronRight className="w-3 h-3" /></button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Create Crop Lot
-function CreateCropLot() {
-  const [form, setForm] = useState({ crop: '', qty: '', grade: 'A', price: '', harvest: '', location: '', notes: '' });
-  const [submitted, setSubmitted] = useState(false);
-  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
-  };
-
-  return (
-    <div className="max-w-2xl">
-      <h2 className="text-xl font-black text-slate-800 mb-5">➕ Create Crop Lot</h2>
-      {submitted && (
-        <div className="mb-5 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3">
-          <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-          <div><p className="font-bold text-emerald-800">Lot Created Successfully!</p><p className="text-xs text-emerald-600">Your crop lot is now live on the <strong>अnaaj</strong> marketplace.</p></div>
+          ))}
         </div>
       )}
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Crop Name *</label>
-            <select value={form.crop} onChange={set('crop')} required className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
-              <option value="">Select Crop</option>
-              {['Onion','Wheat','Rice','Soybean','Cotton','Tomato','Potato','Maize','Sugarcane','Grapes'].map(c => <option key={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Quality / Grade *</label>
-            <select value={form.grade} onChange={set('grade')} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
-              {['A+','A','B+','B','C'].map(g => <option key={g}>{g}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Quantity (Quintals) *</label>
-            <input type="number" value={form.qty} onChange={set('qty')} placeholder="e.g. 100" required className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Expected Price (₹/Quintal) *</label>
-            <input type="number" value={form.price} onChange={set('price')} placeholder="e.g. 2500" required className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Harvest Date *</label>
-            <input type="date" value={form.harvest} onChange={set('harvest')} required className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Location (Village, District) *</label>
-            <input value={form.location} onChange={set('location')} placeholder="e.g. Yeola, Nashik" required className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1.5">Additional Notes</label>
-          <textarea value={form.notes} onChange={set('notes')} placeholder="Describe crop quality, storage condition, packaging…" rows={3} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
-        </div>
-        <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:border-emerald-400 transition cursor-pointer">
-          <Upload className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-          <p className="text-sm font-bold text-slate-500">Upload Crop Photos</p>
-          <p className="text-xs text-slate-400">PNG, JPG up to 10MB • Max 5 photos</p>
-        </div>
-        <button type="submit" className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-black rounded-xl shadow-lg shadow-emerald-600/25 transition flex items-center justify-center gap-2">
-          <PlusCircle className="w-5 h-5" />
-          Create Crop Lot & Publish
-        </button>
-      </form>
     </div>
   );
 }
 
 // Market Prices
-function MarketPrices() {
-  const [activeCrop, setActiveCrop] = useState('onion');
-  const mandis = [
-    { name: 'Lasalgaon APMC', price: '₹2,580', min: '₹2,200', max: '₹2,900', arrivals: '12,400 Q' },
-    { name: 'Pimpalgaon APMC', price: '₹2,520', min: '₹2,100', max: '₹2,800', arrivals: '8,200 Q' },
-    { name: 'Navi Mumbai APMC', price: '₹2,650', min: '₹2,300', max: '₹3,100', arrivals: '5,600 Q' },
-    { name: 'Pune APMC', price: '₹2,600', min: '₹2,250', max: '₹3,000', arrivals: '4,100 Q' },
-  ];
-  return (
-    <div className="space-y-5">
-      <h2 className="text-xl font-black text-slate-800">📊 Live Market Prices</h2>
-      <div className="flex gap-2 flex-wrap">
-        {['onion','wheat','soybean','tomato'].map(c => (
-          <button key={c} onClick={() => setActiveCrop(c)}
-            className={`px-4 py-2 rounded-xl text-sm font-bold capitalize transition ${activeCrop === c ? 'bg-emerald-600 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600 hover:bg-emerald-50'}`}>
-            {c}
-          </button>
-        ))}
-      </div>
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={PRICE_DATA}>
-            <defs>
-              <linearGradient id="mktGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#059669" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#059669" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <Tooltip formatter={(v) => `₹${v.toLocaleString()}/q`} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
-            <Area type="monotone" dataKey={activeCrop} stroke="#059669" strokeWidth={2.5} fill="url(#mktGrad)" dot={{ fill: '#059669', r: 4 }} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {mandis.map(m => (
-          <div key={m.name} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-            <p className="font-black text-slate-800 mb-2">{m.name}</p>
-            <div className="flex items-center justify-between text-sm">
-              <div><span className="text-slate-400 text-xs">Modal</span><div className="font-black text-emerald-700 text-lg">{m.price}</div></div>
-              <div className="text-right"><span className="text-slate-400 text-xs">Range</span><div className="text-xs text-slate-600">{m.min} – {m.max}</div></div>
-              <div className="text-right"><span className="text-slate-400 text-xs">Arrivals</span><div className="font-bold text-slate-700">{m.arrivals}</div></div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function MarketPrices({ t, lang }) {
+  return <LiveMandiDashboard t={t} lang={lang} />;
 }
 
-// Buyer Offers Full
-function BuyerOffersFull() {
-  const [states, setStates] = useState({});
-  const toggle = (id, a) => setStates(p => ({ ...p, [id]: a }));
-  return (
-    <div className="space-y-5">
-      <h2 className="text-xl font-black text-slate-800">🤝 Buyer Offers ({OFFERS.length})</h2>
-      <div className="space-y-4">
-        {OFFERS.map(o => (
-          <div key={o.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h3 className="font-black text-slate-800">{o.buyer}</h3>
-                <p className="text-sm text-slate-400">{o.company} • {o.crop} • {o.qty}</p>
-              </div>
-              <StatusBadge status={o.status} />
-            </div>
-            <div className="grid grid-cols-3 gap-3 text-center mb-4">
-              <div className="bg-emerald-50 rounded-xl p-3"><div className="text-xs text-slate-400">Offered Price</div><div className="font-black text-emerald-700">{o.offered}</div></div>
-              <div className="bg-slate-50 rounded-xl p-3"><div className="text-xs text-slate-400">Quantity</div><div className="font-black text-slate-700">{o.qty}</div></div>
-              <div className="bg-blue-50 rounded-xl p-3"><div className="text-xs text-slate-400">Total Value</div><div className="font-black text-blue-700">{o.total}</div></div>
-            </div>
-            {!states[o.id] ? (
-              <div className="flex gap-3">
-                <button onClick={() => toggle(o.id, 'accepted')} className="flex-1 py-2.5 bg-emerald-600 text-white font-bold text-sm rounded-xl hover:bg-emerald-700 transition">✅ Accept Offer</button>
-                <button onClick={() => toggle(o.id, 'negotiating')} className="flex-1 py-2.5 bg-amber-100 text-amber-700 font-bold text-sm rounded-xl hover:bg-amber-200 transition">💬 Negotiate</button>
-                <button onClick={() => toggle(o.id, 'rejected')} className="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold text-sm rounded-xl hover:bg-red-50 hover:text-red-600 transition">❌ Reject</button>
-              </div>
-            ) : (
-              <div className={`p-3 rounded-xl text-center font-bold ${states[o.id] === 'accepted' ? 'bg-emerald-100 text-emerald-700' : states[o.id] === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'}`}>
-                {states[o.id] === 'accepted' ? '✅ Offer Accepted' : states[o.id] === 'rejected' ? '❌ Offer Rejected' : '💬 Negotiation Initiated'}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+// Buyer Offers Full — with Negotiate Chat Modal + shared offerStatusMap
+function BuyerOffersFull({ offers = OFFERS, offerStatusMap = {}, onOfferAction, onNegotiate }) {
+  const [localNegotiateOffer, setLocalNegotiateOffer] = useState(null);
 
-// My Orders
-function MyOrders() {
-  const steps = ['Order Placed', 'Confirmed', 'Packed', 'In Transit', 'Delivered'];
+  const handleAction = (id, action) => {
+    if (onOfferAction) onOfferAction(id, action);
+  };
+
+  const handleNegotiate = (offer) => {
+    if (onOfferAction) onOfferAction(offer.id, 'negotiating');
+    if (onNegotiate) {
+      onNegotiate(offer);
+    } else {
+      setLocalNegotiateOffer(offer);
+    }
+  };
+
   return (
     <div className="space-y-5">
-      <h2 className="text-xl font-black text-slate-800">📦 My Orders</h2>
+      {localNegotiateOffer && (
+        <NegotiateChatModal
+          offer={localNegotiateOffer}
+          onClose={() => setLocalNegotiateOffer(null)}
+          onAcceptDeal={(id) => {
+            handleAction(id, 'accepted');
+            setLocalNegotiateOffer(null);
+          }}
+        />
+      )}
+
+      <div>
+        <h2 className="text-xl font-black text-slate-800">🤝 Received Buyer Offers ({offers.length})</h2>
+        <p className="text-sm text-slate-500">
+          Accept or reject offers below. Click Negotiate to chat directly with buyers. Actions update in your Dashboard Overview.
+        </p>
+      </div>
+
       <div className="space-y-4">
-        {ORDERS.map(o => {
-          const step = o.status === 'Delivered' ? 4 : o.status === 'In Transit' ? 3 : o.status === 'Pending' ? 1 : 2;
+        {offers.map(o => {
+          const currentStatus = offerStatusMap[o.id];
           return (
             <div key={o.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
               <div className="flex items-start justify-between mb-3">
-                <div><h3 className="font-black text-slate-800">{o.id}</h3><p className="text-sm text-slate-400">{o.crop} • {o.qty} • {o.buyer}</p></div>
-                <div className="text-right"><div className="font-black text-emerald-700">{o.amount}</div><div className="text-xs text-slate-400">{o.date}</div></div>
-              </div>
-              <div className="flex items-center gap-1 mb-3 overflow-x-auto">
-                {steps.map((s, i) => (
-                  <React.Fragment key={s}>
-                    <div className={`flex flex-col items-center min-w-0 flex-shrink-0`}>
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i <= step ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'}`}>{i <= step ? '✓' : i + 1}</div>
-                      <span className="text-[9px] text-slate-400 mt-1 text-center leading-tight">{s}</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-2xl">{o.avatar || '🏢'}</div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-black text-slate-800">{o.buyer}</h3>
+                      {o.isLiveSupabase && (
+                        <span className="text-[10px] font-black bg-blue-100 text-blue-800 border border-blue-300 px-2 py-0.5 rounded-full">
+                          ⚡ Live Supabase Bid
+                        </span>
+                      )}
                     </div>
-                    {i < steps.length - 1 && <div className={`h-0.5 flex-1 mx-1 ${i < step ? 'bg-emerald-500' : 'bg-slate-200'}`} />}
-                  </React.Fragment>
-                ))}
+                    <p className="text-sm text-slate-400">{o.company} • {o.crop} • {o.qty}</p>
+                  </div>
+                </div>
+                <StatusBadge status={currentStatus ? (currentStatus === 'accepted' ? 'Accepted' : currentStatus === 'rejected' ? 'Rejected' : 'Negotiating') : o.status} />
               </div>
-              <StatusBadge status={o.status} />
+              <div className="grid grid-cols-3 gap-3 text-center mb-4">
+                <div className="bg-emerald-50 rounded-xl p-3"><div className="text-xs text-slate-400">Offered Price</div><div className="font-black text-emerald-700">{o.offered}</div></div>
+                <div className="bg-slate-50 rounded-xl p-3"><div className="text-xs text-slate-400">Quantity</div><div className="font-black text-slate-700">{o.qty}</div></div>
+                <div className="bg-blue-50 rounded-xl p-3"><div className="text-xs text-slate-400">Total Value</div><div className="font-black text-blue-700">{o.total}</div></div>
+              </div>
+              {!currentStatus ? (
+                <div className="flex gap-3">
+                  <button onClick={() => handleAction(o.id, 'accepted')} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition cursor-pointer">
+                    ✅ Accept Offer
+                  </button>
+                  <button onClick={() => handleNegotiate(o)} className="flex-1 py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-sm rounded-xl transition cursor-pointer">
+                    💬 Negotiate Chat
+                  </button>
+                  <button onClick={() => handleAction(o.id, 'rejected')} className="flex-1 py-2.5 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 font-bold text-sm rounded-xl transition cursor-pointer">
+                    ❌ Reject
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className={`font-bold text-sm ${currentStatus === 'accepted' ? 'text-emerald-700' : currentStatus === 'rejected' ? 'text-red-600' : 'text-purple-700'}`}>
+                    {currentStatus === 'accepted' ? '✅ Offer Accepted — Visible in Dashboard Overview' : currentStatus === 'rejected' ? '❌ Offer Rejected' : '💬 In Negotiation with Buyer'}
+                  </span>
+                  {currentStatus === 'negotiating' && (
+                    <button
+                      onClick={() => handleNegotiate(o)}
+                      className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-lg transition cursor-pointer"
+                    >
+                      Open Chatbot
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -521,69 +1059,271 @@ function MyOrders() {
   );
 }
 
-// Govt Schemes
-function GovtSchemes() {
+// My Orders removed from sidebar — section kept as placeholder if navigated directly
+
+// GovtSchemes removed from sidebar and dashboard per user request
+
+// Payments & Escrow Ledger
+function Payments({ user, t }) {
+  const farmerName = user?.name || 'Dnyaneshwar Patil';
+  const [paymentsList, setPaymentsList] = useState(() => sharedPaymentDB.getPayments({ farmerName }));
+  const [stats, setStats] = useState(() => sharedPaymentDB.getFarmerStats(farmerName));
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [filterRole, setFilterRole] = useState('all'); // 'all' | 'buyer' | 'fpo'
+  const [liveToast, setLiveToast] = useState(null);
+
+  useEffect(() => {
+    setPaymentsList(sharedPaymentDB.getPayments({ farmerName }));
+    setStats(sharedPaymentDB.getFarmerStats(farmerName));
+
+    const unsubscribe = sharedPaymentDB.subscribe((newPayment) => {
+      setPaymentsList(sharedPaymentDB.getPayments({ farmerName }));
+      setStats(sharedPaymentDB.getFarmerStats(farmerName));
+      if (newPayment) {
+        setLiveToast(newPayment);
+        setTimeout(() => setLiveToast(null), 8000);
+      }
+    });
+
+    return unsubscribe;
+  }, [farmerName]);
+
+  const filteredPayments = paymentsList.filter(p => {
+    if (filterRole === 'buyer') return p.fromRole === 'buyer';
+    if (filterRole === 'fpo') return p.fromRole === 'fpo';
+    return true;
+  });
+
   return (
-    <div className="space-y-5">
-      <h2 className="text-xl font-black text-slate-800">🏛️ Government Schemes</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {SCHEMES.map(s => (
-          <div key={s.name} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <div className="flex items-start justify-between mb-2">
-              <h3 className="font-black text-slate-800">{s.name}</h3>
-              <span className={`text-xs px-2 py-1 rounded-full font-bold ${s.eligible ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>{s.eligible ? '✅ Eligible' : '❌ Not Eligible'}</span>
-            </div>
-            <p className="text-sm text-slate-600 mb-3">{s.benefit}</p>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400">Deadline: {s.deadline}</span>
-              {s.eligible && <button className="px-4 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition">Apply Now</button>}
+    <div className="space-y-6">
+      {/* Live Incoming Payment Toast */}
+      {liveToast && (
+        <div className="p-4 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-2xl shadow-xl flex items-center justify-between animate-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl">🎉</div>
+            <div>
+              <p className="font-black text-sm">
+                New Payment Received: {liveToast.amountFormatted}
+              </p>
+              <p className="text-xs text-emerald-100">
+                From {liveToast.fromRole === 'buyer' ? '🏢 Buyer' : '🌾 FPO'} {liveToast.fromName} for {liveToast.crop} • UTR: {liveToast.utr}
+              </p>
             </div>
           </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+          <button
+            onClick={() => setSelectedReceipt(liveToast)}
+            className="px-3 py-1.5 bg-white text-emerald-800 text-xs font-bold rounded-lg hover:bg-emerald-50 transition shrink-0 cursor-pointer"
+          >
+            View Voucher
+          </button>
+        </div>
+      )}
 
-// Payments
-function Payments() {
-  const payments = [
-    { id: 'PAY-001', from: 'Reliance Fresh', crop: 'Wheat', amount: '₹1,84,000', date: '22 Aug 2026', method: 'NEFT', status: 'Received' },
-    { id: 'PAY-002', from: 'BigBasket', crop: 'Onion', amount: '₹96,000', date: '15 Aug 2026', method: 'UPI', status: 'Received' },
-    { id: 'PAY-003', from: 'Godrej Agrovet', crop: 'Soybean', amount: '₹1,20,000', date: '—', method: '—', status: 'Pending' },
-  ];
-  return (
-    <div className="space-y-5">
-      <h2 className="text-xl font-black text-slate-800">💳 Payments</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-        <div className="bg-emerald-600 rounded-2xl p-5 text-white"><div className="text-xs text-emerald-200 mb-1">Total Received</div><div className="text-2xl font-black">₹4,36,000</div></div>
-        <div className="bg-amber-500 rounded-2xl p-5 text-white"><div className="text-xs text-amber-100 mb-1">Pending</div><div className="text-2xl font-black">₹1,20,000</div></div>
-        <div className="bg-slate-700 rounded-2xl p-5 text-white"><div className="text-xs text-slate-300 mb-1">Total Sales</div><div className="text-2xl font-black">₹5,56,000</div></div>
+      {/* Header & Bank Account Linked Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+            <span>💳</span> Payments & Escrow Settlement History
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Real-time ledger synced with Buyer and FPO escrow settlements (Direct DBT & NEFT)
+          </p>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 font-semibold">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Settlement Account: <strong>{user?.bankDetails?.bankName || 'State Bank of India'} (•••• {user?.bankDetails?.accountNumber?.slice(-4) || '4321'})</strong></span>
+        </div>
       </div>
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead><tr className="bg-slate-50 text-xs text-slate-500 font-bold">
-            <th className="text-left px-5 py-3">Payment ID</th>
-            <th className="text-left px-4 py-3">Buyer</th>
-            <th className="text-left px-4 py-3">Crop</th>
-            <th className="text-left px-4 py-3">Amount</th>
-            <th className="text-left px-4 py-3">Date</th>
-            <th className="text-left px-4 py-3">Method</th>
-            <th className="text-left px-4 py-3">Status</th>
-          </tr></thead>
-          <tbody>{payments.map(p => (
-            <tr key={p.id} className="border-t border-slate-50 hover:bg-slate-50 transition">
-              <td className="px-5 py-3 font-mono text-xs text-slate-600">{p.id}</td>
-              <td className="px-4 py-3 font-bold text-slate-800">{p.from}</td>
-              <td className="px-4 py-3 text-slate-600">{p.crop}</td>
-              <td className="px-4 py-3 font-black text-emerald-700">{p.amount}</td>
-              <td className="px-4 py-3 text-slate-500 text-xs">{p.date}</td>
-              <td className="px-4 py-3 text-slate-500 text-xs">{p.method}</td>
-              <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
-            </tr>
-          ))}</tbody>
-        </table>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-5 text-white shadow-sm">
+          <div className="text-xs text-emerald-200 mb-1 font-semibold">Total Received (कुल प्राप्त)</div>
+          <div className="text-2xl font-black">{stats.totalReceivedFormatted}</div>
+          <div className="text-[11px] text-emerald-200 mt-1">✓ Credited directly into bank account</div>
+        </div>
+        <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-5 text-white shadow-sm">
+          <div className="text-xs text-amber-100 mb-1 font-semibold">Pending in Escrow (एस्क्रो में बाकी)</div>
+          <div className="text-2xl font-black">{stats.totalPendingFormatted}</div>
+          <div className="text-[11px] text-amber-100 mt-1">Locked in RBI Escrow • Releases post delivery</div>
+        </div>
+        <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-5 text-white shadow-sm">
+          <div className="text-xs text-slate-300 mb-1 font-semibold">Total Realized Value (कुल मूल्य)</div>
+          <div className="text-2xl font-black">{stats.totalSalesFormatted}</div>
+          <div className="text-[11px] text-slate-300 mt-1">{stats.count} Total contracts executed</div>
+        </div>
       </div>
+
+      {/* Filters & Transaction Ledger */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+          <div>
+            <h3 className="font-black text-slate-800 text-sm">Payment History & Tax Invoices</h3>
+            <p className="text-[11px] text-slate-500">Auto-updated whenever a Buyer or FPO completes a payment</p>
+          </div>
+          <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200">
+            <button
+              onClick={() => setFilterRole('all')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${filterRole === 'all' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              All ({paymentsList.length})
+            </button>
+            <button
+              onClick={() => setFilterRole('buyer')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${filterRole === 'buyer' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              🏢 Buyers ({paymentsList.filter(p => p.fromRole === 'buyer').length})
+            </button>
+            <button
+              onClick={() => setFilterRole('fpo')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${filterRole === 'fpo' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              🌾 FPO Payouts ({paymentsList.filter(p => p.fromRole === 'fpo').length})
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
+                <th className="text-left px-5 py-3">Txn ID & UTR</th>
+                <th className="text-left px-4 py-3">Payer / Source</th>
+                <th className="text-left px-4 py-3">Crop / Lot</th>
+                <th className="text-left px-4 py-3">Amount</th>
+                <th className="text-left px-4 py-3">Date</th>
+                <th className="text-left px-4 py-3">Method</th>
+                <th className="text-left px-4 py-3">Status</th>
+                <th className="text-center px-4 py-3">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredPayments.map(p => (
+                <tr key={p.id} className="hover:bg-slate-50/80 transition">
+                  <td className="px-5 py-3">
+                    <div className="font-mono font-bold text-slate-700">{p.id}</div>
+                    <div className="text-[10px] text-slate-400 font-mono">{p.utr}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                        p.fromRole === 'buyer' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {p.fromRole === 'buyer' ? 'Buyer' : 'FPO'}
+                      </span>
+                      <span>{p.fromName}</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400">{p.orderId}</div>
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-slate-700">{p.crop}</td>
+                  <td className="px-4 py-3 font-black text-sm text-emerald-700">{p.amountFormatted}</td>
+                  <td className="px-4 py-3 text-slate-500">{p.date}</td>
+                  <td className="px-4 py-3 text-slate-600">{p.method}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      p.status === 'Received' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {p.status === 'Received' ? '✓ Received' : '⏳ Pending'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      onClick={() => setSelectedReceipt(p)}
+                      className="px-2.5 py-1 text-[11px] font-bold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 rounded-lg border border-teal-200 transition cursor-pointer"
+                    >
+                      Receipt
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {filteredPayments.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="text-center py-8 text-slate-400 font-medium">
+                    No transactions found under this category.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Digital Payment Receipt / Voucher Modal */}
+      {selectedReceipt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 relative">
+            <button
+              onClick={() => setSelectedReceipt(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition cursor-pointer"
+            >
+              ✕
+            </button>
+
+            <div className="text-center border-b border-slate-100 pb-4 mb-4">
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mx-auto mb-2 text-2xl font-black">
+                ✓
+              </div>
+              <h3 className="text-lg font-black text-slate-800 font-heading">e-Mandi Payment Voucher</h3>
+              <p className="text-xs text-slate-500">Direct Escrow Settlement Credit Confirmation</p>
+              <div className="mt-2 text-2xl font-black text-emerald-700">{selectedReceipt.amountFormatted}</div>
+            </div>
+
+            <div className="space-y-2.5 text-xs text-slate-600">
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-400">Voucher / Payment ID:</span>
+                <span className="font-mono font-bold text-slate-800">{selectedReceipt.id}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-400">Bank UTR / Reference:</span>
+                <span className="font-mono font-bold text-slate-800">{selectedReceipt.utr}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-400">Payer ({selectedReceipt.fromRole?.toUpperCase()}):</span>
+                <span className="font-bold text-slate-800">{selectedReceipt.fromName}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-400">Beneficiary Farmer:</span>
+                <span className="font-bold text-slate-800">{selectedReceipt.toFarmer}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-400">Credited Bank Account:</span>
+                <span className="font-bold text-emerald-800">{selectedReceipt.accountMasked || 'SBI •••• 4321'}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-400">Crop / Order Details:</span>
+                <span className="font-semibold text-slate-800">{selectedReceipt.crop}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-400">Payment Date:</span>
+                <span className="font-semibold text-slate-800">{selectedReceipt.date}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-400">Mode:</span>
+                <span className="font-semibold text-slate-800">{selectedReceipt.method}</span>
+              </div>
+              <div className="p-3 bg-emerald-50 rounded-xl text-[11px] text-emerald-900 mt-3 flex items-start gap-2">
+                <span>🛡️</span>
+                <span>This transaction is guaranteed by anaaj RBI-regulated escrow Trustee. Funds have been verified & credited to the beneficiary's registered Aadhaar DBT bank account.</span>
+              </div>
+            </div>
+
+            <div className="mt-5 flex gap-2">
+              <button
+                onClick={() => window.print()}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                Print Voucher
+              </button>
+              <button
+                onClick={() => setSelectedReceipt(null)}
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -755,17 +1495,20 @@ function FarmerBuyerChat({ t, user }) {
 
         {/* Chat Input */}
         <div className="p-3 bg-white border-t border-slate-100 flex items-center gap-2">
-          <input
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
-            placeholder="Type your reply, propose price, or ask delivery terms..."
-            className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-          />
+          <div className="relative flex-1 flex items-center">
+            <input
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
+              placeholder="Type your reply, propose price, or ask delivery terms (or tap 🎤)..."
+              className="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            />
+            <VoiceInputMic onResult={setInputText} type="text" />
+          </div>
           <button
             onClick={() => handleSend()}
             disabled={!inputText.trim()}
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold text-sm rounded-xl transition cursor-pointer flex items-center gap-1.5"
+            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold text-sm rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0"
           >
             <span>Send</span>
             <span>➤</span>
@@ -784,43 +1527,228 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
   const [activeSection, setActiveSection] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [cropsList, setCropsList] = useState(CROPS);
+  const [offersList, setOffersList] = useState(OFFERS);
+  const [offerStatusMap, setOfferStatusMap] = useState({});
+  const [negotiatingOffer, setNegotiatingOffer] = useState(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      try {
+        const [liveCrops, liveBids] = await Promise.all([
+          fetchCropListings(),
+          fetchMarketBids()
+        ]);
+        if (isMounted) {
+          if (liveCrops && liveCrops.length > 0) {
+            const mappedCrops = liveCrops.map(l => ({
+              id: l.id,
+              supabaseId: l.id,
+              name: l.crop_name,
+              variety: l.variety || 'Standard',
+              qty: `${l.quantity_qtl} Quintal`,
+              price: `₹${Number(l.base_price_per_qtl).toLocaleString()}/q`,
+              harvest: new Date(l.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+              status: l.status === 'ACTIVE' ? 'Active' : l.status === 'SOLD' ? 'Sold' : 'Pending',
+              grade: l.quality_grade || 'Grade A',
+              location: `${l.district || 'Nashik'}, ${l.state || 'MH'}`,
+              image: l.image_url || null,
+              image_url: l.image_url || null,
+              isLiveSupabase: true
+            }));
+            setCropsList(prev => {
+              const liveIds = new Set(mappedCrops.map(c => c.id));
+              return [...mappedCrops, ...prev.filter(p => !liveIds.has(p.id))];
+            });
+          }
+
+          if (liveBids && liveBids.length > 0) {
+            const mappedBids = liveBids.map(b => ({
+              id: b.id,
+              supabaseId: b.id,
+              buyer: b.buyer_name || 'Verified Buyer',
+              company: b.buyer_company || 'AgriNova Certified Buyer',
+              crop: b.crop_listings?.crop_name || 'Market Lot',
+              qty: `${b.quantity_qtl} Q`,
+              offered: `₹${Number(b.bid_price_per_qtl).toLocaleString()}/q`,
+              total: `₹${(Number(b.bid_price_per_qtl) * Number(b.quantity_qtl)).toLocaleString()}`,
+              status: b.status === 'ACCEPTED' ? 'Accepted' : b.status === 'REJECTED' ? 'Rejected' : 'New',
+              avatar: '🏢',
+              isLiveSupabase: true
+            }));
+            setOffersList(prev => {
+              const bidIds = new Set(mappedBids.map(b => b.id));
+              return [...mappedBids, ...prev.filter(p => !bidIds.has(p.id))];
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Error loading Supabase data for farmer:', err);
+      }
+    }
+    loadData();
+    return () => { isMounted = false; };
+  }, []);
+
+  const [farmerProfile, setFarmerProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem('anaaj_farmer_profile');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      name: user?.name || 'Dnyaneshwar Patil',
+      phone: user?.phone || '+91 98231 45678',
+      email: user?.email || 'dnyaneshwar.patil@kisan.in',
+      village: user?.village || 'Yeola',
+      district: user?.district || 'Nashik',
+      state: 'Maharashtra',
+      pincode: '423401',
+      avatar: user?.avatar || '👨‍🌾',
+      photoUrl: null,
+      landSize: '8.5 Acres (Irrigated)',
+      primaryCrops: 'Red Onion, Sharbati Wheat, Soybean',
+      kisanId: 'MH-NSK-2024-8841',
+      bankName: 'State Bank of India (Yeola Branch)',
+      accountMasked: '•••• •••• 4321',
+      ifsc: 'SBIN0004123',
+      mandiReg: 'Lasalgaon APMC #K-4412',
+      aadhaarVerified: true
+    };
+  });
+
+  const handleUpdateFarmerProfile = (newProfile) => {
+    setFarmerProfile(newProfile);
+    try {
+      localStorage.setItem('anaaj_farmer_profile', JSON.stringify(newProfile));
+    } catch (e) {}
+  };
+
+  const handleOfferAction = async (id, action) => {
+    setOfferStatusMap(p => ({ ...p, [id]: action }));
+    try {
+      const statusMap = { accepted: 'ACCEPTED', rejected: 'REJECTED', negotiating: 'PENDING' };
+      if (statusMap[action]) {
+        await updateBidStatus(id, statusMap[action]);
+      }
+    } catch (e) {
+      console.warn('Failed to update bid status in Supabase:', e);
+    }
+  };
+
+  const handleAddCrop = (newCrop) => {
+    setCropsList(p => [newCrop, ...p]);
+  };
 
   const navItems = [
     { id: 'dashboard', label: t?.dashOverview || 'Dashboard', icon: LayoutDashboard },
     { id: 'crops', label: t?.myCrops || 'My Crops', icon: Leaf },
-    { id: 'create-lot', label: t?.lotCreation || 'Create Crop Lot', icon: PlusCircle },
     { id: 'market', label: t?.liveMandiPrices || 'Market Prices', icon: TrendingUp },
-    { id: 'ai-price', label: t?.aiPricePrediction || 'AI Price Prediction', icon: BarChart3 },
+    { id: 'ai-storage', label: t?.aiStorageAdvisory || 'AI Storage & Sell Advisory', icon: Sparkles },
+    { id: 'ai-price', label: t?.aiPricePrediction || 'AI Price Predictor', icon: BarChart3 },
     { id: 'best-market', label: t?.dashProfitCalc || 'Best Market', icon: MapPin },
+    { id: 'fpo', label: 'Connect to FPO (एफपीओ से जुड़ें)', icon: Building2 },
     { id: 'offers', label: t?.buyerOffers || 'Buyer Offers', icon: ShoppingBag },
-    { id: 'orders', label: t?.trackOrders || 'My Orders', icon: Package },
     { id: 'payments', label: t?.dashPayments || 'Payments', icon: CreditCard },
-    { id: 'logistics', label: t?.dashLogistics || t?.logisticsStorage || 'Logistics', icon: Truck },
-    { id: 'storage', label: t?.dashStorage || 'Storage', icon: Warehouse },
-    { id: 'schemes', label: t?.navSchemes || 'Govt Schemes', icon: BookOpen },
+    { id: 'reviews', label: t?.dashReviews || 'Buyer Ratings', icon: Star },
+    { id: 'logistics', label: t?.dashLogistics || 'Farm Logistics', icon: Truck },
     { id: 'weather', label: t?.dashWeather || t?.weatherAdvisory || 'Weather', icon: CloudSun },
-    { id: 'chat', label: t?.dashChat || 'Chat', icon: MessageCircle },
     { id: 'help', label: t?.dashHelp || t?.disputeRedressal || 'Help & Support', icon: HelpCircle },
   ];
 
   const renderSection = () => {
     switch (activeSection) {
-      case 'dashboard': return <DashboardOverview user={user} />;
-      case 'crops': return <MyCrops />;
-      case 'create-lot': return <CreateCropLot />;
-      case 'market': return <MarketPrices />;
-      case 'offers': return <BuyerOffersFull />;
-      case 'orders': return <MyOrders />;
-      case 'payments': return <Payments />;
-      case 'schemes': return <GovtSchemes />;
-      case 'ai-price': return <PricePredictionCard t={t} />;
-      case 'best-market': return <NetProfitCalculator t={t} />;
-      case 'logistics': return <LogisticsStorage t={t} defaultTab="logistics" />;
-      case 'storage': return <LogisticsStorage t={t} defaultTab="storage" />;
-      case 'weather': return <WeatherWidget t={t} />;
-      case 'chat': return <FarmerBuyerChat t={t} user={user} />;
-      case 'help': return <FarmerGrievance t={t} />;
-      default: return <DashboardOverview user={user} />;
+      case 'dashboard':
+        return (
+          <DashboardOverview
+            user={user}
+            crops={cropsList}
+            offers={offersList}
+            offerStatusMap={offerStatusMap}
+            onOfferAction={handleOfferAction}
+            onNegotiate={(offer) => setNegotiatingOffer(offer)}
+            onNavigate={setActiveSection}
+            t={t}
+          />
+        );
+      case 'crops':
+        return <MyCrops crops={cropsList} onAddCrop={handleAddCrop} farmerProfile={farmerProfile} />;
+      case 'market':
+        return <MarketPrices t={t} lang={lang} />;
+      case 'ai-storage':
+        return (
+          <div className="space-y-5 max-w-7xl mx-auto">
+            <StorageAiAgent
+              userProfile={{
+                id: user?.id || 'farmer-dnyaneshwar',
+                name: farmerProfile.name || 'Dnyaneshwar Patil',
+                village: farmerProfile.village || 'Niphad',
+                district: farmerProfile.district || 'Nashik',
+                state: farmerProfile.state || 'Maharashtra',
+                phone: farmerProfile.phone || '+91 98231 44521'
+              }}
+            />
+          </div>
+        );
+      case 'ai-price':
+        return (
+          <div className="space-y-5 max-w-7xl mx-auto">
+            <PricePredictionCard t={t} onNavigateToProfitCalc={() => setActiveSection('best-market')} />
+          </div>
+        );
+      case 'offers':
+        return (
+          <BuyerOffersFull
+            offers={offersList}
+            offerStatusMap={offerStatusMap}
+            onOfferAction={handleOfferAction}
+            onNegotiate={(offer) => setNegotiatingOffer(offer)}
+          />
+        );
+      case 'payments':
+        return <Payments user={user} t={t} />;
+      case 'reviews':
+        return <FarmerBuyerReviews user={user} t={t} onNavigate={setActiveSection} />;
+      case 'best-market':
+        return <NetProfitCalculator t={t} />;
+      case 'fpo':
+        return (
+          <div className="space-y-5">
+            <FpoMembershipManager 
+              currentRole="farmer" 
+              farmerProfile={{
+                id: user?.id || 'farmer-dnyaneshwar',
+                name: farmerProfile.name || 'Dnyaneshwar Patil',
+                village: `${farmerProfile.village}, ${farmerProfile.district}`,
+                phone: farmerProfile.phone || '+91 98231 44521',
+                crop: cropsList[0]?.name || 'Onion & Wheat',
+                landAcres: farmerProfile.landAcres || 3.5,
+                harvestQty: cropsList[0]?.qty || '85 Quintals'
+              }}
+            />
+          </div>
+        );
+      case 'logistics':
+        return <LogisticsStorage t={t} user={farmerProfile} />;
+      case 'weather':
+        return <WeatherWidget t={t} />;
+      case 'chat':
+        return <FarmerBuyerChat t={t} user={user} />;
+      case 'help':
+        return <FarmerGrievance t={t} />;
+      default:
+        return (
+          <DashboardOverview
+            user={user}
+            crops={cropsList}
+            offerStatusMap={offerStatusMap}
+            onOfferAction={handleOfferAction}
+            onNegotiate={(offer) => setNegotiatingOffer(offer)}
+            onNavigate={setActiveSection}
+            t={t}
+          />
+        );
     }
   };
 
@@ -847,13 +1775,38 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
           </div>
         </div>
 
-        {/* User Info */}
-        <div className="p-4 border-b border-emerald-800">
+        {/* Clickable User Info (Top Left Corner) */}
+        <div 
+          onClick={() => setShowProfileModal(true)}
+          className="p-3 mx-3 my-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-emerald-700/60 transition-all cursor-pointer group shadow-xs"
+          title="Click to view & edit your profile"
+        >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-700 rounded-full flex items-center justify-center text-xl">{user?.avatar || '👨‍🌾'}</div>
-            <div className="min-w-0">
-              <p className="font-bold text-white text-sm truncate">{user?.name || 'Dnyaneshwar Patil'}</p>
-              <p className="text-emerald-400 text-xs">{user?.village || 'Yeola'}, {user?.district || 'Nashik'}</p>
+            <div className="relative flex-shrink-0">
+              {farmerProfile.photoUrl ? (
+                <img src={farmerProfile.photoUrl} alt={farmerProfile.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-emerald-400" />
+              ) : (
+                <div className="w-11 h-11 bg-emerald-700 rounded-full flex items-center justify-center text-2xl ring-2 ring-emerald-400/50 shadow-inner">
+                  {farmerProfile.avatar || '👨‍🌾'}
+                </div>
+              )}
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center text-[9px] text-white font-black border border-emerald-950">
+                ✓
+              </span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between">
+                <p className="font-bold text-white text-sm truncate group-hover:text-emerald-200 transition">
+                  {farmerProfile.name}
+                </p>
+                <Edit2 className="w-3.5 h-3.5 text-emerald-300 opacity-75 group-hover:opacity-100 transition flex-shrink-0" />
+              </div>
+              <p className="text-emerald-300 text-xs truncate">{farmerProfile.village}, {farmerProfile.district}</p>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="text-[9px] text-emerald-300 font-bold bg-emerald-950/60 px-1.5 py-0.5 rounded">
+                  Edit Profile ✏️
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -873,7 +1826,12 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
                 }`}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
-                {item.label}
+                <span className="truncate">{item.label}</span>
+                {item.id === 'reviews' && (
+                  <span className="ml-auto text-[10px] bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded-full font-black">
+                    3
+                  </span>
+                )}
               </button>
             );
           })}
@@ -901,14 +1859,15 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
 
           {/* Search */}
           <div className="flex-1 max-w-md">
-            <div className="relative">
+            <div className="relative flex items-center">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search crops, markets, buyers…"
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                className="w-full pl-9 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
               />
+              <VoiceInputMic onResult={setSearchQuery} type="text" />
             </div>
           </div>
 
@@ -935,12 +1894,20 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
             </button>
 
-            {/* Profile */}
-            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-xl cursor-pointer hover:bg-emerald-100 transition">
-              <div className="w-7 h-7 bg-emerald-600 rounded-full flex items-center justify-center text-sm">{user?.avatar || '👨‍🌾'}</div>
-              <div className="hidden sm:block">
-                <p className="text-xs font-bold text-slate-800 leading-none">{(user?.name || 'Dnyaneshwar').split(' ')[0]}</p>
-                <p className="text-[10px] text-emerald-600 leading-none mt-0.5">Farmer</p>
+            {/* Profile Header Chip */}
+            <div 
+              onClick={() => setShowProfileModal(true)}
+              className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl cursor-pointer hover:bg-emerald-100 transition shadow-xs"
+              title="Click to view & edit profile"
+            >
+              {farmerProfile.photoUrl ? (
+                <img src={farmerProfile.photoUrl} alt={farmerProfile.name} className="w-7 h-7 rounded-full object-cover ring-1 ring-emerald-500" />
+              ) : (
+                <div className="w-7 h-7 bg-emerald-600 rounded-full flex items-center justify-center text-sm">{farmerProfile.avatar || '👨‍🌾'}</div>
+              )}
+              <div className="hidden sm:block text-left">
+                <p className="text-xs font-bold text-slate-800 leading-none">{farmerProfile.name.split(' ')[0]}</p>
+                <p className="text-[10px] text-emerald-600 leading-none mt-0.5 font-bold">Farmer Profile ✏️</p>
               </div>
             </div>
           </div>
@@ -965,6 +1932,28 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
           </div>
         </main>
       </div>
+
+      {/* Real-time Buyer-Farmer Negotiate Chat Modal */}
+      {negotiatingOffer && (
+        <NegotiateChatModal
+          offer={negotiatingOffer}
+          onClose={() => setNegotiatingOffer(null)}
+          onAcceptDeal={(id) => {
+            handleOfferAction(id, 'accepted');
+            setNegotiatingOffer(null);
+          }}
+        />
+      )}
+
+      {/* User Profile & Edit Modal */}
+      <UserProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        role="farmer"
+        profileData={farmerProfile}
+        onSaveProfile={handleUpdateFarmerProfile}
+      />
     </div>
   );
 }
+

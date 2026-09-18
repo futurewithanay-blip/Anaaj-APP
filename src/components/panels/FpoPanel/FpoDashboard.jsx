@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { INITIAL_FPO_MEMBERS } from '../../../data/sampleLots';
 import confetti from 'canvas-confetti';
+import PricePredictionCard from '../../common/PricePredictionCard';
+import FpoMembershipManager from '../../common/FpoMembershipManager';
 
 export default function FpoDashboard({ t }) {
   const [activeTab, setActiveTab] = useState('aggregation'); // 'aggregation' | 'members' | 'revenue' | 'network'
@@ -108,7 +110,9 @@ export default function FpoDashboard({ t }) {
       <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200">
         {[
           { id: 'aggregation', label: '📦 Collective Selling Engine (Pool Lots)' },
-          { id: 'members', label: '👨🌾 Member Farmers Roster (' + members.length + ')' },
+          { id: 'ai-prices', label: '🤖 AI Crop Price Forecast & Selling Advisory' },
+          { id: 'membership-requests', label: '👥 Member Join Requests & Roster' },
+          { id: 'members', label: '👨🌾 Full Farmer Directory (' + members.length + ')' },
           { id: 'revenue', label: '💰 Member Revenue Distribution Analytics' },
         ].map((tab) => (
           <button
@@ -342,6 +346,27 @@ export default function FpoDashboard({ t }) {
             })}
           </div>
         </div>
+      )}
+
+      {/* AI Crop Price Forecast & Advisory Tab for FPO */}
+      {activeTab === 'ai-prices' && (
+        <div className="space-y-6">
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-300 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 font-bold">
+              <span className="p-1.5 bg-amber-500 text-slate-950 rounded-lg">🏢 FPO Advisory</span>
+              <span>Collective Aggregation Price Intelligence: Evaluate market timing for 500+ Member pooled lots</span>
+            </div>
+            <span className="text-[11px] text-amber-900 font-semibold bg-white/80 px-2.5 py-1 rounded-md border border-amber-200">
+              Optimal liquidation timing minimizes holding depreciation
+            </span>
+          </div>
+          <PricePredictionCard t={t} isFpo={true} />
+        </div>
+      )}
+
+      {/* Member Join Requests & Roster Management */}
+      {activeTab === 'membership-requests' && (
+        <FpoMembershipManager currentRole="fpo" />
       )}
 
     </div>

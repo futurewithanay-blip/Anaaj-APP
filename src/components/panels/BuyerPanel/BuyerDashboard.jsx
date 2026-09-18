@@ -13,10 +13,15 @@ import {
   Clock,
   ArrowRight,
   Send,
-  X
+  X,
+  HelpCircle
 } from 'lucide-react';
 import { INITIAL_BUYER_REQUIREMENTS } from '../../../data/sampleLots';
 import confetti from 'canvas-confetti';
+import FarmerGrievance from '../FarmerPanel/FarmerGrievance';
+import KisanAwaazTrigger from '../../kisanAwaaz/KisanAwaazTrigger';
+import { FORM_POST_REQUIREMENT } from '../../kisanAwaaz/KisanAwaazConfig';
+import VoiceInputMic from '../../kisanAwaaz/mode1/VoiceInputMic';
 
 export default function BuyerDashboard({ farmerLots, t }) {
   const [activeTab, setActiveTab] = useState('marketplace'); // 'marketplace' | 'requirements' | 'orders'
@@ -132,6 +137,7 @@ export default function BuyerDashboard({ farmerLots, t }) {
           { id: 'marketplace', label: '🌾 Browse Farmer & FPO Lots (' + filteredLots.length + ')' },
           { id: 'requirements', label: '📋 My Sourcing Requirements (' + requirements.length + ')' },
           { id: 'orders', label: '📦 Active Orders & Deliveries (2)' },
+          { id: 'help', label: '🛡️ ' + (t?.disputeRedressal || 'Help & Support') },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -153,28 +159,30 @@ export default function BuyerDashboard({ farmerLots, t }) {
           
           {/* Search & Filter Bar */}
           <div className="flex flex-col sm:flex-row gap-3 p-4 bg-white rounded-2xl border border-slate-200 shadow-xs">
-            <div className="relative flex-1">
+            <div className="relative flex-1 flex items-center">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by crop, location, variety (e.g. Nashik Onion, Latur Soybean)..."
-                className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-10 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500"
               />
+              <VoiceInputMic onResult={setSearchQuery} type="text" />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center relative">
               <select
                 value={selectedCropFilter}
                 onChange={(e) => setSelectedCropFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 bg-slate-50"
+                className="px-3 pr-9 py-2 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 bg-slate-50 appearance-none"
               >
                 <option value="all">All Crops</option>
                 <option value="onion">Onion (कांदा)</option>
                 <option value="soybean">Soybean (सोयाबीन)</option>
                 <option value="wheat">Wheat (गहू)</option>
               </select>
+              <VoiceInputMic onResult={setSelectedCropFilter} type="select" />
             </div>
           </div>
 
@@ -320,6 +328,13 @@ export default function BuyerDashboard({ farmerLots, t }) {
         </div>
       )}
 
+      {/* Help & Support Grievance Tab */}
+      {activeTab === 'help' && (
+        <div className="animate-in fade-in">
+          <FarmerGrievance t={t} role="buyer" />
+        </div>
+      )}
+
       {/* Post Requirement Modal */}
       {showPostReqModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in">
@@ -335,54 +350,98 @@ export default function BuyerDashboard({ farmerLots, t }) {
             </div>
 
             <form onSubmit={handleCreateRequirement} className="p-6 space-y-4">
+
+              {/* KisanAwaaz — voice-guided requirement posting (additive, isolated) */}
+              <KisanAwaazTrigger
+                formConfig={FORM_POST_REQUIREMENT}
+                onVoiceSubmit={(v) => {
+                  const newReq = {
+                    id: `REQ-${Math.floor(7700 + Math.random() * 200)}`,
+                    buyerName: 'ITC Agri Procurement Ltd',
+                    buyerType: 'Flour Miller & Exporter',
+                    crop:                   v.newReqCrop     || newReqCrop,
+                    requiredQuantityQtl:    Number(v.newReqQty   || newReqQty),
+                    preferredGrade:         'Grade A / Export Quality',
+                    maxMoisture:            '11%',
+                    maxPriceOffered:        Number(v.newReqPrice || newReqPrice),
+                    deliveryLocation:       v.newReqLocation || newReqLocation,
+                    fulfillmentTimeline:    'Within 5 days',
+                    status:                 'Open Bidding',
+                    verifiedScore:          99,
+                  };
+                  setRequirements([newReq, ...requirements]);
+                  setShowPostReqModal(false);
+                  confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+                  alert('Requirement posted! AI matching engine is notifying 120+ verified farmers in Maharashtra & MP.');
+                }}
+                onPreFill={(v) => {
+                  if (v.newReqCrop)     setNewReqCrop(v.newReqCrop);
+                  if (v.newReqQty)      setNewReqQty(v.newReqQty);
+                  if (v.newReqPrice)    setNewReqPrice(v.newReqPrice);
+                  if (v.newReqLocation) setNewReqLocation(v.newReqLocation);
+                }}
+              />
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Crop Needed</label>
-                  <select
-                    value={newReqCrop}
-                    onChange={(e) => setNewReqCrop(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
-                  >
-                    <option value="Onion">Onion (कांदा)</option>
-                    <option value="Soybean">Soybean (सोयाबीन)</option>
-                    <option value="Wheat">Wheat (गहू)</option>
-                    <option value="Cotton">Cotton (कापूस)</option>
-                  </select>
+                  <div className="relative flex items-center">
+                    <select
+                      value={newReqCrop}
+                      onChange={(e) => setNewReqCrop(e.target.value)}
+                      className="w-full pl-3 pr-9 py-2 rounded-xl border border-slate-300 text-xs appearance-none bg-white"
+                    >
+                      <option value="Onion">Onion (कांदा)</option>
+                      <option value="Soybean">Soybean (सोयाबीन)</option>
+                      <option value="Wheat">Wheat (गहू)</option>
+                      <option value="Cotton">Cotton (कापूस)</option>
+                    </select>
+                    <VoiceInputMic onResult={setNewReqCrop} type="select" />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Quantity (Quintals)</label>
-                  <input
-                    type="number"
-                    required
-                    value={newReqQty}
-                    onChange={(e) => setNewReqQty(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type="number"
+                      required
+                      value={newReqQty}
+                      onChange={(e) => setNewReqQty(e.target.value)}
+                      className="w-full pl-3 pr-10 py-2 rounded-xl border border-slate-300 text-xs font-bold"
+                    />
+                    <VoiceInputMic onResult={setNewReqQty} type="number" />
+                  </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Target Price (₹/Qtl)</label>
-                  <input
-                    type="number"
-                    required
-                    value={newReqPrice}
-                    onChange={(e) => setNewReqPrice(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-blue-900"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type="number"
+                      required
+                      value={newReqPrice}
+                      onChange={(e) => setNewReqPrice(e.target.value)}
+                      className="w-full pl-3 pr-10 py-2 rounded-xl border border-slate-300 text-xs font-bold text-blue-900"
+                    />
+                    <VoiceInputMic onResult={setNewReqPrice} type="number" />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Delivery Destination</label>
-                  <input
-                    type="text"
-                    value={newReqLocation}
-                    onChange={(e) => setNewReqLocation(e.target.value)}
-                    placeholder="e.g. Nashik Plant"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      value={newReqLocation}
+                      onChange={(e) => setNewReqLocation(e.target.value)}
+                      placeholder="e.g. Nashik Plant"
+                      className="w-full pl-3 pr-10 py-2 rounded-xl border border-slate-300 text-xs"
+                    />
+                    <VoiceInputMic onResult={setNewReqLocation} type="text" />
+                  </div>
                 </div>
               </div>
 
@@ -434,25 +493,31 @@ export default function BuyerDashboard({ farmerLots, t }) {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Your Offered Price (₹/Quintal)</label>
-                <input
-                  type="number"
-                  required
-                  value={offerPrice}
-                  onChange={(e) => setOfferPrice(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-base font-extrabold text-emerald-800 focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="relative flex items-center">
+                  <input
+                    type="number"
+                    required
+                    value={offerPrice}
+                    onChange={(e) => setOfferPrice(e.target.value)}
+                    className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-300 text-base font-extrabold text-emerald-800 focus:ring-2 focus:ring-blue-500"
+                  />
+                  <VoiceInputMic onResult={setOfferPrice} type="number" />
+                </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Logistics Arrangement</label>
-                <select
-                  value={pickupType}
-                  onChange={(e) => setPickupType(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
-                >
-                  <option value="buyer_pickup">Buyer Will Arrange Farmgate Pickup</option>
-                  <option value="farmer_delivery">Farmer to Deliver at Buyer Plant</option>
-                </select>
+                <div className="relative flex items-center">
+                  <select
+                    value={pickupType}
+                    onChange={(e) => setPickupType(e.target.value)}
+                    className="w-full pl-3 pr-9 py-2 rounded-xl border border-slate-300 text-xs appearance-none bg-white"
+                  >
+                    <option value="buyer_pickup">Buyer Will Arrange Farmgate Pickup</option>
+                    <option value="farmer_delivery">Farmer to Deliver at Buyer Plant</option>
+                  </select>
+                  <VoiceInputMic onResult={setPickupType} type="select" />
+                </div>
               </div>
 
               <div className="pt-2 flex gap-3">

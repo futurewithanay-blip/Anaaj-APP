@@ -12,15 +12,9 @@ export default function TopGovtHeader({ lang, t, onOpenSmsModal }) {
         {/* Top Info Strip */}
         <div className="py-1.5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 font-medium text-emerald-400">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-              <span className="font-semibold tracking-wide">SIH 2026</span>
-              <span className="text-slate-400">|</span>
-              <span className="text-slate-300 hidden sm:inline">PS ID: 26132 (Govt. of Maharashtra)</span>
-            </div>
-            <div className="hidden md:flex items-center gap-1.5 text-slate-400 border-l border-slate-700 pl-3">
+            <div className="hidden md:flex items-center gap-1.5 text-slate-400 pl-3">
               <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-              <span>Official Agro-Market Intelligence & Price Discovery Portal</span>
+              <span>{t.topOfficialPortal || "Official Agro-Market Intelligence & Price Discovery Portal"}</span>
             </div>
           </div>
 
@@ -31,7 +25,7 @@ export default function TopGovtHeader({ lang, t, onOpenSmsModal }) {
               title="Query Mandi Prices without Internet"
             >
               <MessageSquareText className="w-3.5 h-3.5 text-harvest-400" />
-              <span className="font-medium">SMS / USSD Mode (*99#)</span>
+              <span className="font-medium">{t.topSmsMode || "SMS / USSD Mode (*99#)"}</span>
             </button>
 
             <a
@@ -49,7 +43,7 @@ export default function TopGovtHeader({ lang, t, onOpenSmsModal }) {
         <div className="py-1.5 flex items-center overflow-hidden bg-slate-950/70 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex items-center gap-2 pr-4 text-harvest-400 font-semibold uppercase tracking-wider shrink-0 border-r border-slate-800 text-[11px]">
             <Radio className="w-3 h-3 text-red-500 animate-pulse" />
-            <span>Live Mandi Ticker:</span>
+            <span>{t.topLiveTicker || "Live Mandi Ticker:"}</span>
           </div>
 
           <div className="overflow-hidden whitespace-nowrap flex-1 relative">

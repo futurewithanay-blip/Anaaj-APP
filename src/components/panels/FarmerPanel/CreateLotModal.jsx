@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { X, Sprout, Upload, Sparkles, CheckCircle2, ShieldCheck, DollarSign } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import KisanAwaazTrigger from '../../kisanAwaaz/KisanAwaazTrigger';
+import { FORM_CREATE_LOT } from '../../kisanAwaaz/KisanAwaazConfig';
+import VoiceInputMic from '../../kisanAwaaz/mode1/VoiceInputMic';
 
 export default function CreateLotModal({ isOpen, onClose, onAddLot }) {
   const [crop, setCrop] = useState('Onion (कांदा / Red Onion)');
@@ -64,57 +67,108 @@ export default function CreateLotModal({ isOpen, onClose, onAddLot }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          
+
+          {/* KisanAwaaz — voice-guided lot creation (additive, isolated) */}
+          <KisanAwaazTrigger
+            formConfig={FORM_CREATE_LOT}
+            onVoiceSubmit={(v) => {
+              const newLot = {
+                id: `LOT-2026-${Math.floor(100 + Math.random() * 900)}`,
+                crop:            v.crop            || crop,
+                variety:         v.variety         || variety,
+                quantityQtl:     Number(v.quantityQtl     || quantityQtl),
+                grade:           v.grade           || grade,
+                moisturePercent: v.moisturePercent || moisturePercent,
+                harvestDate:     v.harvestDate     || harvestDate,
+                location:        v.location        || location,
+                distanceFromMandi: '16 km',
+                expectedPrice:   Number(v.expectedPrice   || expectedPrice),
+                status: 'Active (Bidding Open)',
+                offersCount: 0, topOfferPrice: null, topBuyerName: null,
+                image: (v.crop || crop).includes('Onion')
+                  ? 'https://images.unsplash.com/photo-1618512496249-a07fe83aa8cb?w=500&auto=format&fit=crop&q=60'
+                  : (v.crop || crop).includes('Soybean')
+                  ? 'https://images.unsplash.com/photo-1599940824399-b87987ceb72a?w=500&auto=format&fit=crop&q=60'
+                  : 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=500&auto=format&fit=crop&q=60',
+              };
+              onAddLot(newLot);
+              confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+              onClose();
+            }}
+            onPreFill={(v) => {
+              if (v.crop)            setCrop(v.crop);
+              if (v.variety)         setVariety(v.variety);
+              if (v.quantityQtl)     setQuantityQtl(v.quantityQtl);
+              if (v.grade)           setGrade(v.grade);
+              if (v.moisturePercent) setMoisturePercent(v.moisturePercent);
+              if (v.harvestDate)     setHarvestDate(v.harvestDate);
+              if (v.location)        setLocation(v.location);
+              if (v.expectedPrice)   setExpectedPrice(v.expectedPrice);
+            }}
+          />
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Crop Type</label>
-              <select
-                value={crop}
-                onChange={(e) => setCrop(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-agri-500"
-              >
-                <option value="Onion (कांदा / Red Onion)">🧅 Onion (कांदा / Red Onion)</option>
-                <option value="Soybean (सोयाबीन)">🌱 Soybean (सोयाबीन)</option>
-                <option value="Cotton (कापूस / कपास)">☁️ Cotton (कापूस / कपास)</option>
-                <option value="Wheat (गहू - Sharbati)">🌾 Wheat (गहू - Sharbati)</option>
-                <option value="Tomato (टोमॅटो)">🍅 Tomato (टोमॅटो)</option>
-              </select>
+              <div className="relative flex items-center">
+                <select
+                  value={crop}
+                  onChange={(e) => setCrop(e.target.value)}
+                  className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-agri-500 appearance-none bg-white"
+                >
+                  <option value="Onion (कांदा / Red Onion)">🧅 Onion (कांदा / Red Onion)</option>
+                  <option value="Soybean (सोयाबीन)">🌱 Soybean (सोयाबीन)</option>
+                  <option value="Cotton (कापूस / कपास)">☁️ Cotton (कापूस / कपास)</option>
+                  <option value="Wheat (गहू - Sharbati)">🌾 Wheat (गहू - Sharbati)</option>
+                  <option value="Tomato (टोमॅटो)">🍅 Tomato (टोमॅटो)</option>
+                </select>
+                <VoiceInputMic onResult={setCrop} type="select" />
+              </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Variety / Cultivar</label>
-              <input
-                type="text"
-                value={variety}
-                onChange={(e) => setVariety(e.target.value)}
-                placeholder="e.g. Gavran / Sharbati C-306"
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-agri-500"
-              />
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={variety}
+                  onChange={(e) => setVariety(e.target.value)}
+                  placeholder="e.g. Gavran / Sharbati C-306"
+                  className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-agri-500"
+                />
+                <VoiceInputMic onResult={setVariety} type="text" />
+              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Total Quantity (Quintals)</label>
-              <input
-                type="number"
-                min="1"
-                required
-                value={quantityQtl}
-                onChange={(e) => setQuantityQtl(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-bold focus:ring-2 focus:ring-agri-500"
-              />
+              <div className="relative flex items-center">
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={quantityQtl}
+                  onChange={(e) => setQuantityQtl(e.target.value)}
+                  className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs font-bold focus:ring-2 focus:ring-agri-500"
+                />
+                <VoiceInputMic onResult={setQuantityQtl} type="number" />
+              </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Moisture Level (%)</label>
-              <input
-                type="text"
-                value={moisturePercent}
-                onChange={(e) => setMoisturePercent(e.target.value)}
-                placeholder="e.g. 11.0%"
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-agri-500"
-              />
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={moisturePercent}
+                  onChange={(e) => setMoisturePercent(e.target.value)}
+                  placeholder="e.g. 11.0%"
+                  className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-agri-500"
+                />
+                <VoiceInputMic onResult={setMoisturePercent} type="text" />
+              </div>
             </div>
 
             <div>
@@ -131,41 +185,48 @@ export default function CreateLotModal({ isOpen, onClose, onAddLot }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Quality Grade</label>
-              <select
-                value={grade}
-                onChange={(e) => setGrade(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-agri-500"
-              >
-                <option value="Grade A (Export Quality 55mm+)">Grade A (Export Quality 55mm+)</option>
-                <option value="Grade B (FAQ / Good Domestic)">Grade B (FAQ / Good Domestic)</option>
-                <option value="Grade C (Local Processing)">Grade C (Local Processing)</option>
-              </select>
+              <div className="relative flex items-center">
+                <select
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value)}
+                  className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-agri-500 appearance-none bg-white"
+                >
+                  <option value="Grade A (Export Quality 55mm+)">Grade A (Export Quality 55mm+)</option>
+                  <option value="Grade B (FAQ / Good Domestic)">Grade B (FAQ / Good Domestic)</option>
+                  <option value="Grade C (Local Processing)">Grade C (Local Processing)</option>
+                </select>
+                <VoiceInputMic onResult={setGrade} type="select" />
+              </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Expected Reserve Price (₹/Quintal)</label>
-              <div className="relative">
+              <div className="relative flex items-center">
                 <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">₹</span>
                 <input
                   type="number"
                   required
                   value={expectedPrice}
                   onChange={(e) => setExpectedPrice(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-emerald-800 focus:ring-2 focus:ring-agri-500"
+                  className="w-full pl-8 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-emerald-800 focus:ring-2 focus:ring-agri-500"
                 />
+                <VoiceInputMic onResult={setExpectedPrice} type="number" />
               </div>
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Farm Pickup Location</label>
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g. Village Mohadi, Dindori, Nashik, Maharashtra"
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-agri-500"
-            />
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="e.g. Village Mohadi, Dindori, Nashik, Maharashtra"
+                className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-agri-500"
+              />
+              <VoiceInputMic onResult={setLocation} type="text" />
+            </div>
           </div>
 
           {/* AI Lot Verification Note */}

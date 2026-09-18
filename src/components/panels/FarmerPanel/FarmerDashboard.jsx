@@ -17,6 +17,7 @@ import {
   Compass
 } from 'lucide-react';
 import PricePredictionCard from '../../common/PricePredictionCard';
+import StorageAiAgent from '../../common/StorageAiAgent';
 import NetProfitCalculator from '../../common/NetProfitCalculator';
 import WeatherWidget from '../../common/WeatherWidget';
 import MandiMap from '../../common/MandiMap';
@@ -24,6 +25,7 @@ import CreateLotModal from './CreateLotModal';
 import BuyerOffers from './BuyerOffers';
 import LogisticsStorage from './LogisticsStorage';
 import FarmerGrievance from './FarmerGrievance';
+import FpoMembershipManager from '../../common/FpoMembershipManager';
 
 export default function FarmerDashboard({ farmerLots, setFarmerLots, t, lang, onOpenSmsModal, onOpenVoiceBot }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'my-crops' | 'offers' | 'ai-prices' | 'profit-calc' | 'logistics' | 'grievance'
@@ -117,9 +119,11 @@ export default function FarmerDashboard({ farmerLots, setFarmerLots, t, lang, on
           { id: 'overview', label: '📊 ' + t.navHome },
           { id: 'my-crops', label: '🌾 ' + t.myCrops + ` (${farmerLots.length})` },
           { id: 'offers', label: '📩 ' + t.buyerOffers + ` (${totalOffers})` },
+          { id: 'ai-storage', label: '✨ ' + (t.aiStorageAdvisory || 'AI Storage & Sell Advisory') },
           { id: 'ai-prices', label: '🤖 ' + t.aiPricePrediction },
           { id: 'profit-calc', label: '💡 ' + t.netProfitCalc },
-          { id: 'logistics', label: '🚚 ' + t.logisticsStorage },
+          { id: 'fpo-membership', label: '🤝 Connect to FPO (एफपीओ से जुड़ें)' },
+          { id: 'logistics', label: '🚚 ' + (t.dashLogistics || 'Farm Logistics') },
           { id: 'weather', label: '☁️ ' + t.weatherAdvisory },
           { id: 'grievance', label: '🛡️ ' + t.disputeRedressal },
         ].map((tab) => (
@@ -142,7 +146,7 @@ export default function FarmerDashboard({ farmerLots, setFarmerLots, t, lang, on
         <div className="space-y-8">
           
           {/* AI Sell Now vs Wait Card & Net Profit Quick Highlight */}
-          <PricePredictionCard t={t} />
+          <PricePredictionCard t={t} onNavigateToProfitCalc={() => setActiveTab('profit-calc')} />
 
           {/* Net Profit Calculator */}
           <NetProfitCalculator t={t} />
@@ -222,12 +226,22 @@ export default function FarmerDashboard({ farmerLots, setFarmerLots, t, lang, on
         <BuyerOffers farmerLots={farmerLots} t={t} />
       )}
 
+      {activeTab === 'ai-storage' && (
+        <div className="space-y-5 max-w-7xl mx-auto">
+          <StorageAiAgent userProfile={{ id: 'farmer-1', name: 'Dnyaneshwar Patil', village: 'Niphad', district: 'Nashik', state: 'Maharashtra' }} />
+        </div>
+      )}
+
       {activeTab === 'ai-prices' && (
-        <PricePredictionCard t={t} />
+        <PricePredictionCard t={t} onNavigateToProfitCalc={() => setActiveTab('profit-calc')} />
       )}
 
       {activeTab === 'profit-calc' && (
         <NetProfitCalculator t={t} />
+      )}
+
+      {activeTab === 'fpo-membership' && (
+        <FpoMembershipManager currentRole="farmer" />
       )}
 
       {activeTab === 'logistics' && (

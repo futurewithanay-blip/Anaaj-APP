@@ -132,7 +132,6 @@ export default function Footer({ setCurrentView, setLang }) {
           <div className="flex items-center gap-6">
             <button onClick={() => setCurrentView('about')} className="hover:text-slate-300">About SIH 2026</button>
             <button onClick={() => setCurrentView('schemes')} className="hover:text-slate-300">Schemes</button>
-            <button onClick={() => setCurrentView('contact')} className="hover:text-slate-300">Contact KVK</button>
           </div>
         </div>
 

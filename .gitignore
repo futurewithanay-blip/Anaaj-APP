@@ -37,3 +37,11 @@ dist-ssr
 .parcel-cache
 .eslintcache
 .stylelintcache
+
+# Python backend ignores
+backend/.env
+backend/__pycache__/
+backend/.venv/
+__pycache__/
+*.pyc
+

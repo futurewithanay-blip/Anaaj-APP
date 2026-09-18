@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Sprout, Users, Building2, Phone, Lock, CheckCircle2, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
+import VoiceInputMic from './VoiceInputMic';
 
 export default function AuthModal({ isOpen, onClose, initialMode = 'login', onLoginSuccess, t }) {
   const [mode, setMode] = useState(initialMode); // 'login' | 'register'
@@ -101,7 +102,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', onLo
                 }`}
               >
                 <Users className={`w-5 h-5 ${role === 'fpo' ? 'text-amber-600' : 'text-slate-400'}`} />
-                <span className="text-xs">🌾 FPO</span>
+                <span className="text-xs">🏢 FPO</span>
               </button>
 
               <button
@@ -114,7 +115,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', onLo
                 }`}
               >
                 <Building2 className={`w-5 h-5 ${role === 'buyer' ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span className="text-xs">🏢 Buyer / Mill</span>
+                <span className="text-xs">🏭 Buyer</span>
               </button>
             </div>
           </div>
@@ -126,14 +127,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', onLo
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     {role === 'farmer' ? 'Full Name (as on Aadhaar/7-12)' : role === 'fpo' ? 'FPO Name & Reg. No' : 'Company / Mill Name'}
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder={role === 'farmer' ? 'e.g. Dnyaneshwar Patil' : role === 'fpo' ? 'e.g. Sahyadri Agri FPO' : 'e.g. Adani Wilmar'}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-agri-500"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder={role === 'farmer' ? 'e.g. Dnyaneshwar Patil' : role === 'fpo' ? 'e.g. Sahyadri Agri FPO' : 'e.g. Adani Wilmar'}
+                      className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-agri-500"
+                    />
+                    <VoiceInputMic onResult={setName} type="text" />
+                  </div>
                 </div>
               )}
 
@@ -141,7 +145,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', onLo
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Mobile Number (for OTP Login)
                 </label>
-                <div className="relative">
+                <div className="relative flex items-center">
                   <span className="absolute left-3.5 top-2.5 text-xs font-bold text-slate-400">+91</span>
                   <input
                     type="tel"
@@ -150,8 +154,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', onLo
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="98231 XXXXX"
-                    className="w-full pl-12 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-agri-500"
+                    className="w-full pl-12 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-agri-500"
                   />
+                  <VoiceInputMic onResult={val => setPhone(String(val).replace(/\D/g, '').slice(0, 10))} type="number" />
                 </div>
               </div>
 
@@ -159,13 +164,16 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', onLo
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Primary Location / District
                 </label>
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. Nashik, Maharashtra"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-agri-500"
-                />
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="e.g. Nashik, Maharashtra"
+                    className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-agri-500"
+                  />
+                  <VoiceInputMic onResult={setLocation} type="text" />
+                </div>
               </div>
 
               <button

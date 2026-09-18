@@ -9,11 +9,18 @@ export const INITIAL_FARMER_LOTS = [
     harvestDate: "2026-08-28",
     location: "Dindori, Nashik, Maharashtra",
     distanceFromMandi: "14 km",
+    distanceKm: 14,
     expectedPrice: 2650,
     status: "Active Offers (3)",
     offersCount: 3,
     topOfferPrice: 2620,
     topBuyerName: "Sahyadri Agro Processing Ltd",
+    farmerName: "Dnyaneshwar Patil",
+    farmerType: "Individual Farmer",
+    farmerRating: 4.7,
+    reviewCount: 23,
+    verified: true,
+    wishlist: false,
     image: "https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=500&auto=format&fit=crop&q=60"
   },
   {
@@ -26,11 +33,18 @@ export const INITIAL_FARMER_LOTS = [
     harvestDate: "2026-08-25",
     location: "Latur, Maharashtra",
     distanceFromMandi: "22 km",
+    distanceKm: 22,
     expectedPrice: 5200,
     status: "Negotiation in Progress",
     offersCount: 2,
     topOfferPrice: 5120,
     topBuyerName: "Adani Wilmar Solvents",
+    farmerName: "Latur Soybean FPO Union",
+    farmerType: "FPO",
+    farmerRating: 4.9,
+    reviewCount: 58,
+    verified: true,
+    wishlist: false,
     image: "https://images.unsplash.com/photo-1599940824399-b87987ceb72a?w=500&auto=format&fit=crop&q=60"
   },
   {
@@ -43,11 +57,18 @@ export const INITIAL_FARMER_LOTS = [
     harvestDate: "2026-08-20",
     location: "Sehore, Madhya Pradesh",
     distanceFromMandi: "18 km",
+    distanceKm: 18,
     expectedPrice: 2900,
     status: "Order Confirmed",
     offersCount: 4,
     topOfferPrice: 2880,
     topBuyerName: "ITC Choupal Sagar",
+    farmerName: "Bhopal Krishi Aggregators",
+    farmerType: "Aggregator",
+    farmerRating: 4.5,
+    reviewCount: 34,
+    verified: true,
+    wishlist: false,
     image: "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=500&auto=format&fit=crop&q=60"
   }
 ];
@@ -72,7 +93,7 @@ export const INITIAL_BUYER_REQUIREMENTS = [
     maxPriceOffered: 2680,
     deliveryLocation: "Mohadi Cold Hub, Dindori (Nashik)",
     fulfillmentTimeline: "Within 4 days",
-    status: "Open Bidding",
+    status: "Open",
     verifiedScore: 98
   },
   {
@@ -86,7 +107,7 @@ export const INITIAL_BUYER_REQUIREMENTS = [
     maxPriceOffered: 5250,
     deliveryLocation: "Latur Processing Plant",
     fulfillmentTimeline: "Within 7 days",
-    status: "Open Bidding",
+    status: "Matched",
     verifiedScore: 99
   },
   {
@@ -100,7 +121,22 @@ export const INITIAL_BUYER_REQUIREMENTS = [
     maxPriceOffered: 2920,
     deliveryLocation: "Indore Logistics Park",
     fulfillmentTimeline: "Immediate Pickup",
-    status: "Open Bidding",
+    status: "Fulfilled",
     verifiedScore: 97
   }
+];
+
+export const ACTIVITY_FEED = [
+  { id: 1, type: "offer_accepted", icon: "✅", message: "Dnyaneshwar Patil accepted your offer of ₹2,650/Q for Onion lot LOT-2026-081", time: "2 hours ago", link: "my-offers" },
+  { id: 2, type: "new_match", icon: "🤖", message: "AI found 3 new lots matching your Soybean requirement REQ-7704 (94%+ match score)", time: "4 hours ago", link: "ai-matching" },
+  { id: 3, type: "payment_due", icon: "⚠️", message: "Payment of ₹4,30,000 for ORD-501 (Wheat) is due in 2 days", time: "6 hours ago", link: "payments" },
+  { id: 4, type: "counter_offer", icon: "🔄", message: "Ramesh Sharma counter-offered ₹1,900/Q for Tomato lot (was ₹1,800)", time: "Yesterday", link: "my-offers" },
+  { id: 5, type: "delivery", icon: "🚚", message: "ORD-501 shipment MH-15-EG-4412 is 42 km away. ETA: Today 5:30 PM", time: "Yesterday", link: "logistics" },
+];
+
+export const TRANSPORTER_LIST = [
+  { id: "TR-01", name: "Suresh Logistics", vehicle: "20ft Container Truck", capacity: "200 Qtl", rate: "₹18/km", rating: 4.6, contact: "+91 98001 11222", available: true },
+  { id: "TR-02", name: "Maharashtra Transport Co.", vehicle: "Open Truck (Tata 407)", capacity: "80 Qtl", rate: "₹14/km", rating: 4.3, contact: "+91 97221 33441", available: true },
+  { id: "TR-03", name: "Patil Cold Chain Pvt Ltd", vehicle: "Reefer Van (Temp Control)", capacity: "60 Qtl", rate: "₹22/km", rating: 4.8, contact: "+91 94001 55667", available: false },
+  { id: "TR-04", name: "KisanGaadi Fleet", vehicle: "Mini Truck (Mahindra Bolero)", capacity: "30 Qtl", rate: "₹12/km", rating: 4.4, contact: "+91 99101 77889", available: true },
 ];

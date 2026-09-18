@@ -25,6 +25,7 @@ import RegistrationFlow from './components/pages/RegistrationFlow';
 import FarmerDashboardNew from './components/dashboards/FarmerDashboardNew';
 import BuyerDashboardNew from './components/dashboards/BuyerDashboardNew';
 import FpoDashboardNew from './components/dashboards/FpoDashboardNew';
+import { authService } from './services/authService';
 
 // Localization & Data
 import { translations } from './i18n/translations';
@@ -42,6 +43,18 @@ export default function App() {
   const [smsModalOpen, setSmsModalOpen] = useState(false);
 
   const t = translations[lang] || translations.en;
+
+  // Restore authenticated session on mount from Supabase / localStorage
+  useEffect(() => {
+    const stored = authService.getCurrentUser();
+    if (stored) {
+      setCurrentUser(stored);
+      const role = stored.role || authService.getStoredRole();
+      if (role === 'farmer') setCurrentView('farmer-dash');
+      else if (role === 'fpo') setCurrentView('fpo-dash');
+      else if (role === 'buyer') setCurrentView('buyer-dash');
+    }
+  }, []);
 
   // Wrapper for view navigation to handle "My Dashboard" logic
   const navigateToView = (viewId) => {
@@ -78,6 +91,7 @@ export default function App() {
   };
 
   const handleLoginSuccess = (user, role) => {
+    authService.setCurrentUser(user, role);
     setCurrentUser(user);
     if (role === 'farmer') navigateToView('farmer-dash');
     else if (role === 'fpo') navigateToView('fpo-dash');
@@ -85,6 +99,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    authService.logout();
     setCurrentUser(null);
     navigateToView('home');
   };

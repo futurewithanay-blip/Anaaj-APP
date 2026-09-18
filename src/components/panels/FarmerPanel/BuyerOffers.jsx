@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MessageSquare, Check, X, ShieldCheck, DollarSign, Send, ArrowRight, Building2, Star, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import VoiceInputMic from '../../kisanAwaaz/mode1/VoiceInputMic';
 
 export default function BuyerOffers({ farmerLots, t }) {
   const [activeNegotiation, setActiveNegotiation] = useState(null);
@@ -168,12 +169,15 @@ export default function BuyerOffers({ farmerLots, t }) {
             <div className="p-3 bg-slate-100 border-t border-slate-200 flex items-center justify-between gap-3 text-xs">
               <span className="font-bold text-slate-700">Quick Counter (₹/Q):</span>
               <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={counterPrice}
-                  onChange={(e) => setCounterPrice(e.target.value)}
-                  className="w-24 px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-emerald-800"
-                />
+                <div className="relative flex items-center">
+                  <input
+                    type="number"
+                    value={counterPrice}
+                    onChange={(e) => setCounterPrice(e.target.value)}
+                    className="w-28 pl-3 pr-9 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-emerald-800"
+                  />
+                  <VoiceInputMic onResult={setCounterPrice} type="number" />
+                </div>
                 <button
                   type="button"
                   onClick={() => setNewChatText(`Our revised counter-offer is ₹${counterPrice}/Quintal. Farmgate pickup.`)}
@@ -185,17 +189,20 @@ export default function BuyerOffers({ farmerLots, t }) {
             </div>
 
             {/* Input Form */}
-            <form onSubmit={handleSendChat} className="p-3 bg-white border-t border-slate-200 flex gap-2">
-              <input
-                type="text"
-                value={newChatText}
-                onChange={(e) => setNewChatText(e.target.value)}
-                placeholder="Type your reply to buyer..."
-                className="flex-1 px-4 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-agri-500"
-              />
+            <form onSubmit={handleSendChat} className="p-3 bg-white border-t border-slate-200 flex gap-2 items-center">
+              <div className="relative flex-1 flex items-center">
+                <input
+                  type="text"
+                  value={newChatText}
+                  onChange={(e) => setNewChatText(e.target.value)}
+                  placeholder="Type your reply to buyer or tap 🎤 to speak..."
+                  className="w-full pl-4 pr-10 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-agri-500"
+                />
+                <VoiceInputMic onResult={setNewChatText} type="text" />
+              </div>
               <button
                 type="submit"
-                className="px-4 py-2 bg-agri-700 hover:bg-agri-800 text-white rounded-xl text-xs font-bold flex items-center gap-1"
+                className="px-4 py-2 bg-agri-700 hover:bg-agri-800 text-white rounded-xl text-xs font-bold flex items-center gap-1 shrink-0"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>Send</span>

@@ -29,7 +29,6 @@ export default function Navbar({
     { id: 'services', label: t.navServices },
     { id: 'map', label: t.navMap },
     { id: 'about', label: t.navAbout },
-    { id: 'contact', label: t.navContact },
     ...(currentUser ? [{ id: 'dashboard', label: '📊 ' + (t.dashOverview || 'Dashboard') }] : []),
   ];
 

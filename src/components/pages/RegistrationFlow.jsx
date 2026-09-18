@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, Fragment } from 'react';
 import {
   Check, ArrowRight, ArrowLeft, Camera, Sprout, Users, Building2,
   ShieldCheck, MapPin, Phone, Mail, Lock, Eye, EyeOff, User,
@@ -6,6 +6,10 @@ import {
   Package, CreditCard, Award, BarChart2, AlertCircle, X
 } from 'lucide-react';
 import { translations } from '../../i18n/translations';
+import KisanAwaazTrigger from '../kisanAwaaz/KisanAwaazTrigger';
+import { FORM_REGISTRATION_S1 } from '../kisanAwaaz/KisanAwaazConfig';
+import VoiceInputMic from '../kisanAwaaz/mode1/VoiceInputMic';
+import { authService } from '../../services/authService';
 
 /* ─────────────────────────────────────────────
    CONSTANTS
@@ -36,6 +40,26 @@ const BUYER_CROPS = ['Wheat','Rice','Potato','Onion','Tomato','Fruits','Vegetabl
 
 const QUALITY_PREFS = ['Organic','Natural','Conventional'];
 
+const POPULAR_BANKS = [
+  'State Bank of India (SBI)',
+  'Bank of Baroda',
+  'Punjab National Bank (PNB)',
+  'Canara Bank',
+  'Union Bank of India',
+  'Bank of India',
+  'Central Bank of India',
+  'Indian Bank',
+  'HDFC Bank',
+  'ICICI Bank',
+  'Axis Bank',
+  'Kotak Mahindra Bank',
+  'Maharashtra Gramin Bank',
+  'Vidharbha Konkan Gramin Bank',
+  'Baroda UP Bank',
+  'Aryavart Bank',
+  'Other Bank',
+];
+
 /* ─────────────────────────────────────────────
    REUSABLE FIELD COMPONENTS
 ───────────────────────────────────────────── */
@@ -63,21 +87,54 @@ function FieldWrap({ icon: Icon, children, error }) {
   );
 }
 
-function Input({ icon, error, ...props }) {
+function Input({ icon, error, voiceConfig, ...props }) {
+  const handleVoice = (val) => {
+    if (voiceConfig?.onResult) {
+      voiceConfig.onResult(val);
+    } else if (props.onChange) {
+      props.onChange({ target: { value: val } });
+    }
+  };
+  const voiceType = voiceConfig?.type || (props.type === 'number' ? 'number' : 'text');
+
   return (
     <FieldWrap icon={icon} error={error}>
-      <input {...props} className="flex-1 px-3 py-3 text-sm outline-none bg-transparent text-gray-800 placeholder-gray-400" />
+      <div className="flex-1 relative flex items-center">
+        <input 
+          {...props} 
+          className={`w-full py-3 text-sm outline-none bg-transparent text-gray-800 placeholder-gray-400 pl-3 pr-10`} 
+        />
+        <VoiceInputMic onResult={handleVoice} type={voiceType} />
+      </div>
     </FieldWrap>
   );
 }
 
-function Select({ icon, error, children, ...props }) {
+function Select({ icon, error, children, voiceConfig, ...props }) {
+  const selectRef = useRef(null);
+  const handleVoice = (val) => {
+    if (voiceConfig?.onResult) {
+      voiceConfig.onResult(val);
+    } else if (props.onChange) {
+      props.onChange({ target: { value: val } });
+    }
+  };
+
   return (
     <FieldWrap icon={icon} error={error}>
-      <select {...props} className="flex-1 px-3 py-3 text-sm outline-none bg-transparent text-gray-800 appearance-none">
-        {children}
-      </select>
-      <ChevronDown className="w-4 h-4 text-gray-400 mr-3 shrink-0" />
+      <div className="flex-1 relative flex items-center">
+        <select 
+          ref={selectRef}
+          {...props} 
+          className="w-full px-3 py-3 text-sm outline-none bg-transparent text-gray-800 appearance-none pr-14"
+        >
+          {children}
+        </select>
+        <div className="absolute right-2 flex items-center gap-1">
+          <ChevronDown className="w-4 h-4 text-gray-400 pointer-events-none shrink-0" />
+          <VoiceInputMic targetRef={selectRef} onResult={handleVoice} type="select" />
+        </div>
+      </div>
     </FieldWrap>
   );
 }
@@ -189,15 +246,37 @@ function ProgressBar({ currentStep, onStepClick, maxStep = 1, t }) {
 /* ─────────────────────────────────────────────
    STEP 1 — BASIC DETAILS
 ───────────────────────────────────────────── */
-function Step1({ data, onChange, onNext, otpSent, otpVerified, onSendOtp, onVerifyOtp, otp, setOtp, t }) {
+function Step1({ data, onChange, onNext, otpSent, otpVerified, onSendOtp, onVerifyOtp, otp, setOtp, t, receivedOtpCode, otpLoading }) {
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState(false);
   const [errors, setErrors] = useState({});
   const fileRef = useRef(null);
 
   const initials = data.name ? data.name.trim().split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'US';
+
+  const handleGoogleSignIn = () => {
+    setGoogleLoading(true);
+    setTimeout(() => {
+      setGoogleLoading(false);
+      setGoogleConnected(true);
+      onChange('name', 'Dnyaneshwar Patil');
+      onChange('email', 'dnyaneshwar.patil@gmail.com');
+      if (!data.mobile) onChange('mobile', '9876543210');
+      if (!data.password) onChange('password', 'GooglePass@2026');
+      if (!data.confirmPassword) onChange('confirmPassword', 'GooglePass@2026');
+      onChange('termsAccepted', true);
+
+      // Auto trigger OTP verification simulation
+      onSendOtp();
+      setTimeout(() => {
+        onVerifyOtp(['1', '2', '3', '4']);
+      }, 150);
+    }, 600);
+  };
 
   const validate = () => {
     const e = {};
@@ -261,6 +340,93 @@ function Step1({ data, onChange, onNext, otpSent, otpVerified, onSendOtp, onVeri
         />
       </div>
 
+      {/* Google Login Option */}
+      <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 space-y-3 text-center shadow-xs">
+        <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+          <span className="flex items-center gap-1.5 text-teal-700">
+            <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
+            Quick Registration with Google
+          </span>
+          <span className="text-[10px] bg-teal-100 text-teal-800 px-2 py-0.5 rounded font-extrabold uppercase tracking-wider">Fast Track</span>
+        </div>
+
+        {googleConnected ? (
+          <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-emerald-800 text-xs font-bold animate-in fade-in">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-xs border border-emerald-200 shrink-0">
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-slate-900 leading-tight">Google Account Connected</p>
+                <p className="text-[11px] text-emerald-700 font-medium">dnyaneshwar.patil@gmail.com</p>
+              </div>
+            </div>
+            <span className="bg-emerald-600 text-white text-[10px] px-2.5 py-1 rounded-lg font-extrabold uppercase tracking-wider shrink-0">
+              Auto Filled ✓
+            </span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading}
+            className="w-full flex items-center justify-center gap-3 px-5 py-3 bg-white hover:bg-slate-100/90 text-slate-800 font-bold text-sm rounded-xl border border-slate-300 shadow-sm hover:shadow transition-all duration-150 cursor-pointer active:scale-98"
+          >
+            {googleLoading ? (
+              <span className="text-xs text-slate-600 font-bold flex items-center gap-2">
+                <span className="w-3.5 h-3.5 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></span>
+                Connecting Google Account...
+              </span>
+            ) : (
+              <>
+                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>Continue with Google / गूगल से जारी रखें</span>
+              </>
+            )}
+          </button>
+        )}
+
+        <div className="relative flex items-center justify-center pt-1">
+          <div className="border-t border-slate-200 w-full"></div>
+          <span className="bg-slate-50 px-3 text-[11px] text-slate-400 font-bold uppercase tracking-wider absolute">
+            or fill details manually / या विवरण स्वयं भरें
+          </span>
+        </div>
+      </div>
+
+      {/* Full Name */}
+      {/* KisanAwaaz — voice pre-fill for Step 1 non-security fields (additive, isolated) */}
+      {/* NOTE: password/OTP collection by voice is explicitly excluded (voice-security constraint) */}
+      <KisanAwaazTrigger
+        formConfig={FORM_REGISTRATION_S1}
+        onVoiceSubmit={(v) => {
+          // Only pre-fill — user must confirm and submit the form themselves.
+          // Password/OTP are intentionally never passed from voice.
+          if (v.name)    onChange('name',    v.name);
+          if (v.phone)   onChange('phone',   v.phone);
+          if (v.village) onChange('village', v.village);
+          if (v.state)   onChange('state',   v.state);
+          if (v.pincode) onChange('pincode', v.pincode);
+        }}
+        onPreFill={(v) => {
+          if (v.name)    onChange('name',    v.name);
+          if (v.phone)   onChange('phone',   v.phone);
+          if (v.village) onChange('village', v.village);
+          if (v.state)   onChange('state',   v.state);
+          if (v.pincode) onChange('pincode', v.pincode);
+        }}
+      />
+
       {/* Full Name */}
       <div>
         <Label required>{t?.regFullName || 'Full Name'}</Label>
@@ -270,6 +436,7 @@ function Step1({ data, onChange, onNext, otpSent, otpVerified, onSendOtp, onVeri
           value={data.name}
           onChange={e => onChange('name', e.target.value)}
           error={errors.name}
+          voiceConfig={{ onResult: (val) => onChange('name', val), type: 'text' }}
         />
       </div>
 
@@ -307,16 +474,23 @@ function Step1({ data, onChange, onNext, otpSent, otpVerified, onSendOtp, onVeri
 
           {/* OTP input & auto-fill simulation */}
           {otpSent && !otpVerified && (
-            <div className="mt-3 p-3.5 bg-teal-50 rounded-xl border border-teal-200 animate-in fade-in">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-teal-800 font-bold">
-                  Enter 4-digit OTP sent to +91-{data.mobile}
+            <div className="mt-3 p-3.5 bg-teal-50 rounded-xl border-2 border-teal-300 animate-in fade-in space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-teal-900 font-bold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-teal-500 animate-ping"></span>
+                  ⚡ Supabase Live SMS OTP (+91-{data.mobile})
                 </p>
-                <span className="text-[10px] bg-teal-200/70 text-teal-900 font-mono px-2 py-0.5 rounded font-bold">
-                  Demo: 1234
-                </span>
+                {receivedOtpCode ? (
+                  <span className="text-[10px] bg-teal-200 text-teal-900 font-mono px-2 py-0.5 rounded font-black tracking-widest">
+                    Code: {receivedOtpCode}
+                  </span>
+                ) : (
+                  <span className="text-[10px] bg-teal-200/70 text-teal-900 font-mono px-2 py-0.5 rounded font-bold">
+                    Demo: 1234
+                  </span>
+                )}
               </div>
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-1">
                 {[0, 1, 2, 3].map(i => (
                   <input
                     key={i}
@@ -336,15 +510,15 @@ function Step1({ data, onChange, onNext, otpSent, otpVerified, onSendOtp, onVeri
                       }
                     }}
                     id={`reg-otp-${i}`}
-                    className="w-10 h-10 text-center text-lg font-bold border border-teal-300 rounded-lg outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                    className="w-10 h-10 text-center text-lg font-bold border border-teal-300 rounded-lg outline-none focus:ring-2 focus:ring-teal-400 bg-white text-slate-800"
                   />
                 ))}
                 <button
                   type="button"
                   onClick={() => {
-                    const demoOtp = ['1', '2', '3', '4'];
-                    setOtp(demoOtp);
-                    setTimeout(() => onVerifyOtp(demoOtp), 150);
+                    const codeToFill = receivedOtpCode ? receivedOtpCode.split('') : ['1', '2', '3', '4'];
+                    setOtp(codeToFill);
+                    setTimeout(() => onVerifyOtp(codeToFill), 150);
                   }}
                   className="ml-auto text-xs font-bold text-teal-700 hover:text-teal-900 underline cursor-pointer whitespace-nowrap"
                 >
@@ -354,9 +528,10 @@ function Step1({ data, onChange, onNext, otpSent, otpVerified, onSendOtp, onVeri
               <button
                 type="button"
                 onClick={() => onVerifyOtp(otp)}
-                className="w-full py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg transition shadow-xs cursor-pointer"
+                disabled={otpLoading}
+                className="w-full py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg transition shadow-xs cursor-pointer disabled:opacity-50"
               >
-                {t?.regVerifyOtp || 'Verify OTP'}
+                {otpLoading ? 'Verifying with Database...' : (t?.regVerifyOtp || 'Verify OTP')}
               </button>
             </div>
           )}
@@ -634,30 +809,32 @@ function Step2({ selectedRole, onSelect, onNext, onPrev, t }) {
 /* ─────────────────────────────────────────────
    STEP 3 — FARMER FORM
 ───────────────────────────────────────────── */
-function FarmerForm({ data, onChange }) {
+function FarmerForm({ data, onChange, errors = {} }) {
   const upd = (k, v) => onChange('farmer', k, v);
-  const toggleService = s => upd('services', data.services?.includes(s) ? (data.services||[]).filter(x=>x!==s) : [...(data.services||[]),s]);
 
   return (
     <div className="space-y-5">
       <SectionCard icon={MapPin} title="Farming Location">
         <div><Label required>State</Label>
-          <Select value={data.state||''} onChange={e=>upd('state',e.target.value)}>
+          <Select value={data.state||''} onChange={e=>upd('state',e.target.value)} error={errors.state}>
             <option value="">Select State</option>
             {STATES.map(s=><option key={s}>{s}</option>)}
           </Select></div>
-        <div><Label required>District</Label><Input placeholder="e.g. Nashik" value={data.district||''} onChange={e=>upd('district',e.target.value)}/></div>
-        <div><Label required>Block / Tehsil</Label><Input placeholder="e.g. Niphad" value={data.block||''} onChange={e=>upd('block',e.target.value)}/></div>
-        <div><Label required>Village</Label><Input placeholder="e.g. Ozar" value={data.village||''} onChange={e=>upd('village',e.target.value)}/></div>
-        <div><Label required>Pincode</Label><Input placeholder="e.g. 422206" value={data.pincode||''} onChange={e=>upd('pincode',e.target.value)}/></div>
+        <div><Label required>District</Label><Input placeholder="e.g. Nashik" value={data.district||''} onChange={e=>upd('district',e.target.value)} error={errors.district} voiceConfig={{onResult: v=>upd('district',v), type:'text'}}/></div>
+        <div><Label required>Block / Tehsil</Label><Input placeholder="e.g. Niphad" value={data.block||''} onChange={e=>upd('block',e.target.value)} error={errors.block} voiceConfig={{onResult: v=>upd('block',v), type:'text'}}/></div>
+        <div><Label required>Village</Label><Input placeholder="e.g. Ozar" value={data.village||''} onChange={e=>upd('village',e.target.value)} error={errors.village} voiceConfig={{onResult: v=>upd('village',v), type:'text'}}/></div>
+        <div><Label required>Pincode</Label><Input placeholder="e.g. 422206" value={data.pincode||''} onChange={e=>upd('pincode',e.target.value)} error={errors.pincode} voiceConfig={{onResult: v=>upd('pincode',v), type:'number'}}/></div>
       </SectionCard>
 
       <SectionCard icon={Leaf} title="Farm Details">
         <div>
           <Label required>Total Land Area</Label>
           <div className="flex gap-2">
-            <input type="number" placeholder="e.g. 5" value={data.landArea||''} onChange={e=>upd('landArea',e.target.value)}
-              className="flex-1 px-3 py-3 text-sm border border-gray-300 rounded-lg outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+            <div className="flex-1 relative flex items-center border rounded-lg focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100 bg-white">
+              <input type="number" placeholder="e.g. 5" value={data.landArea||''} onChange={e=>upd('landArea',e.target.value)}
+                className={`w-full pl-3 pr-10 py-3 text-sm outline-none bg-transparent ${errors.landArea ? 'border-red-400' : 'border-gray-300'}`} />
+              <VoiceInputMic onResult={v=>upd('landArea',v)} type="number" />
+            </div>
             <select value={data.landUnit||'Acre'} onChange={e=>upd('landUnit',e.target.value)}
               className="w-28 px-3 py-3 text-sm border border-gray-300 rounded-lg outline-none focus:border-teal-500 bg-white">
               <option>Acre</option><option>Hectare</option><option>Bigha</option>
@@ -665,54 +842,395 @@ function FarmerForm({ data, onChange }) {
           </div>
         </div>
         <div><Label>Cultivated Area</Label>
-          <input type="number" placeholder="Cultivated area" value={data.cultivatedArea||''} onChange={e=>upd('cultivatedArea',e.target.value)}
-            className="w-full px-3 py-3 text-sm border border-gray-300 rounded-lg outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+          <div className="relative flex items-center">
+            <input type="number" placeholder="Cultivated area" value={data.cultivatedArea||''} onChange={e=>upd('cultivatedArea',e.target.value)}
+              className="w-full pl-3 pr-10 py-3 text-sm border border-gray-300 rounded-lg outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 bg-white" />
+            <VoiceInputMic onResult={v=>upd('cultivatedArea',v)} type="number" />
+          </div>
         </div>
         <FullRow><Label>Land Ownership</Label>
           <RadioGroup name="ownership" options={['Own','Leased','Both']} value={data.ownership||'Own'} onChange={v=>upd('ownership',v)}/></FullRow>
       </SectionCard>
 
-      <SectionCard icon={Sprout} title="Farming Information">
-        <div><Label required>Primary Crop</Label>
-          <Select value={data.primaryCrop||''} onChange={e=>upd('primaryCrop',e.target.value)}>
-            <option value="">Select Crop</option>
-            {CROPS.map(c=><option key={c}>{c}</option>)}
-          </Select></div>
-        <div><Label>Other Crops</Label><Input placeholder="e.g. Tomato, Soybean" value={data.otherCrops||''} onChange={e=>upd('otherCrops',e.target.value)}/></div>
-        <div><Label>Current Season Crop</Label><Input placeholder="Current crop" value={data.seasonCrop||''} onChange={e=>upd('seasonCrop',e.target.value)}/></div>
-        <div><Label>Farming Type</Label>
-          <Select value={data.farmingType||'Conventional'} onChange={e=>upd('farmingType',e.target.value)}>
-            {['Conventional','Organic','Natural','Mixed'].map(t=><option key={t}>{t}</option>)}
-          </Select></div>
-        <div><Label>Farming Experience (years)</Label>
-          <input type="number" placeholder="e.g. 10" value={data.farmingExp||''} onChange={e=>upd('farmingExp',e.target.value)}
-            className="w-full px-3 py-3 text-sm border border-gray-300 rounded-lg outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" /></div>
-      </SectionCard>
+      {/* 🛡️ AADHAAR CARD VERIFICATION SECTION */}
+      <SectionCard icon={ShieldCheck} title="Aadhaar Card Verification / आधार सत्यापन">
+        <div>
+          <Label required>Aadhaar Number / 12-अंकीय आधार संख्या</Label>
+          <div className="relative">
+            <input
+              type="text"
+              maxLength={14}
+              placeholder="XXXX XXXX XXXX"
+              value={data.aadharNumber || ''}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/\D/g, '').slice(0, 12);
+                const formatted = raw.replace(/(\d{4})(?=\d)/g, '$1 ');
+                upd('aadharNumber', formatted);
+              }}
+              className={`w-full px-3 py-3 text-sm border rounded-lg outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 font-mono tracking-wider ${errors.aadharNumber ? 'border-red-400' : 'border-gray-300'}`}
+            />
+            {data.isAadhaarVerified && (
+              <span className="absolute right-3 top-2.5 text-xs font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                <Check className="w-3.5 h-3.5 stroke-[3]" /> Verified
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-gray-500 mt-1">12 digits unique identification number issued by UIDAI</p>
+        </div>
 
-      <SectionCard icon={Globe} title="Irrigation & Soil">
-        <div><Label>Irrigation Source</Label>
-          <Select value={data.irrigation||''} onChange={e=>upd('irrigation',e.target.value)}>
-            <option value="">Select Source</option>
-            {['Borewell','Canal','Rainfed','River','Drip','Other'].map(s=><option key={s}>{s}</option>)}
-          </Select></div>
-        <div><Label>Soil Type</Label>
-          <Select value={data.soilType||''} onChange={e=>upd('soilType',e.target.value)}>
-            <option value="">Select Type</option>
-            {['Black Cotton','Red Laterite','Sandy Loam','Alluvial','Clay','Loamy'].map(s=><option key={s}>{s}</option>)}
-          </Select></div>
-        <FullRow><Label>Soil Testing Available?</Label>
-          <RadioGroup name="soilTest" options={['Yes','No']} value={data.soilTesting||'No'} onChange={v=>upd('soilTesting',v)}/></FullRow>
-      </SectionCard>
+        <div>
+          <Label required>Name as on Aadhaar / आधार पर नाम</Label>
+          <Input
+            placeholder="Full Name as printed on Aadhaar"
+            value={data.aadharName || ''}
+            onChange={(e) => upd('aadharName', e.target.value)}
+            voiceConfig={{ onResult: (val) => upd('aadharName', val), type: 'text' }}
+          />
+          <p className="text-[11px] text-gray-500 mt-1">Must match your government identity record</p>
+        </div>
 
-      <SectionCard icon={Star} title="Preferences & Interested Services">
-        <div><Label>Preferred Language</Label>
-          <Select value={data.language||''} onChange={e=>upd('language',e.target.value)}>
-            <option value="">Select Language</option>
-            {['Hindi','Marathi','English','Gujarati','Punjabi','Telugu','Tamil','Kannada'].map(l=><option key={l}>{l}</option>)}
-          </Select></div>
         <FullRow>
-          <Label>Interested Services</Label>
-          <MultiSelect options={FARMER_SERVICES} selected={data.services||[]} onChange={v=>upd('services',v)} />
+          {!data.isAadhaarVerified ? (
+            <div className="bg-teal-50/70 border border-teal-200 rounded-xl p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-teal-900 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-teal-600" />
+                    UIDAI e-KYC Verification (OTP Authentication)
+                  </p>
+                  <p className="text-[11px] text-teal-700 mt-0.5">
+                    Verify via OTP sent to the mobile number registered with your Aadhaar for direct subsidy & mandi settlement.
+                  </p>
+                </div>
+                {!data.aadharOtpSent && (
+                  <button
+                    type="button"
+                    disabled={!data.aadharNumber || data.aadharNumber.replace(/\s/g, '').length < 12}
+                    onClick={() => {
+                      upd('aadharOtpSent', true);
+                    }}
+                    className={`px-4 py-2 text-xs font-bold rounded-lg transition shrink-0 ${
+                      data.aadharNumber && data.aadharNumber.replace(/\s/g, '').length === 12
+                        ? 'bg-teal-600 hover:bg-teal-700 text-white cursor-pointer shadow-sm'
+                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    Send Aadhaar OTP
+                  </button>
+                )}
+              </div>
+
+              {data.aadharOtpSent && (
+                <div className="pt-2 border-t border-teal-200/60 flex flex-col sm:flex-row items-center gap-3">
+                  <div className="w-full sm:w-56">
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="Enter 6-digit OTP (e.g. 123456)"
+                      value={data.aadharOtp || ''}
+                      onChange={(e) => upd('aadharOtp', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      className="w-full px-3 py-2 text-sm text-center font-mono tracking-widest border border-teal-300 rounded-lg outline-none focus:ring-2 focus:ring-teal-200 bg-white"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!data.aadharOtp || data.aadharOtp.length < 6}
+                    onClick={() => {
+                      upd('isAadhaarVerified', true);
+                      upd('aadharOtpSent', false);
+                    }}
+                    className={`w-full sm:w-auto px-5 py-2 text-xs font-bold rounded-lg transition ${
+                      data.aadharOtp && data.aadharOtp.length === 6
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-sm'
+                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    Verify & Authenticate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => upd('aadharOtpSent', false)}
+                    className="text-xs text-gray-500 hover:text-gray-700 underline"
+                  >
+                    Resend OTP
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+                  ✓
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-emerald-900">Aadhaar e-KYC Verified Successfully</p>
+                  <p className="text-[11px] text-emerald-700">Authenticated with UIDAI • Linked with NPCI Direct Benefit Transfer (DBT)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  upd('isAadhaarVerified', false);
+                  upd('aadharOtp', '');
+                }}
+                className="text-xs text-emerald-800 hover:text-emerald-950 font-semibold underline"
+              >
+                Re-verify
+              </button>
+            </div>
+          )}
+        </FullRow>
+
+        <FullRow>
+          <Label>Upload Aadhaar Card Document (Optional)</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="border-2 border-dashed border-gray-200 hover:border-teal-400 rounded-xl p-4 text-center cursor-pointer transition bg-gray-50/50 hover:bg-white relative block">
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                className="sr-only"
+                onChange={(e) => {
+                  if (e.target.files?.[0]) upd('aadharFrontDoc', e.target.files[0].name);
+                }}
+              />
+              <FileText className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+              <p className="text-xs font-semibold text-gray-700">
+                {data.aadharFrontDoc ? `📄 ${data.aadharFrontDoc}` : 'Upload Aadhaar Front'}
+              </p>
+              <p className="text-[10px] text-gray-400">PDF, JPG, PNG up to 5MB</p>
+            </label>
+
+            <label className="border-2 border-dashed border-gray-200 hover:border-teal-400 rounded-xl p-4 text-center cursor-pointer transition bg-gray-50/50 hover:bg-white relative block">
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                className="sr-only"
+                onChange={(e) => {
+                  if (e.target.files?.[0]) upd('aadharBackDoc', e.target.files[0].name);
+                }}
+              />
+              <FileText className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+              <p className="text-xs font-semibold text-gray-700">
+                {data.aadharBackDoc ? `📄 ${data.aadharBackDoc}` : 'Upload Aadhaar Back'}
+              </p>
+              <p className="text-[10px] text-gray-400">PDF, JPG, PNG up to 5MB</p>
+            </label>
+          </div>
+        </FullRow>
+      </SectionCard>
+
+      {/* 💳 BANK ACCOUNT DETAILS SECTION */}
+      <SectionCard icon={CreditCard} title="Bank Account Details / बैंक खाता विवरण">
+        <FullRow>
+          <div className="bg-emerald-50/80 border border-emerald-200/90 rounded-xl p-3.5 flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+              <CreditCard className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                Direct Benefit Transfer (DBT) & Escrow Mandi Settlement Account
+                <span className="bg-emerald-200/70 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">24-Hr Payout</span>
+              </p>
+              <p className="text-[11px] text-emerald-800 mt-0.5 leading-relaxed">
+                Crop sales earnings, mandi MSP payments, and government subsidies (PM-KISAN) will be transferred directly to this verified account without intermediaries.
+              </p>
+            </div>
+          </div>
+        </FullRow>
+
+        {/* Account Holder Name */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <Label required>Account Holder Name / खाताधारक का नाम</Label>
+            {data.aadharName && (
+              <button
+                type="button"
+                onClick={() => upd('bankHolderName', data.aadharName)}
+                className="text-[11px] text-teal-600 hover:text-teal-800 font-semibold underline cursor-pointer"
+              >
+                Use Aadhaar Name
+              </button>
+            )}
+          </div>
+          <Input
+            placeholder="Full Name as in Bank Passbook"
+            value={data.bankHolderName || ''}
+            onChange={(e) => upd('bankHolderName', e.target.value)}
+            error={errors.bankHolderName}
+          />
+          <p className="text-[11px] text-gray-500 mt-1">Must match the name on your passbook or cheque</p>
+        </div>
+
+        {/* Bank Name */}
+        <div>
+          <Label required>Bank Name / बैंक का नाम</Label>
+          <Select
+            value={data.bankName || ''}
+            onChange={(e) => upd('bankName', e.target.value)}
+            error={errors.bankName}
+          >
+            <option value="">Select Bank / बैंक चुनें</option>
+            {POPULAR_BANKS.map((b) => (
+              <option key={b} value={b}>{b}</option>
+            ))}
+          </Select>
+          {data.bankName === 'Other Bank' && (
+            <div className="mt-2">
+              <Input
+                placeholder="Enter your Bank Name"
+                value={data.otherBankName || ''}
+                onChange={(e) => upd('otherBankName', e.target.value)}
+                error={errors.otherBankName}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Account Number */}
+        <div>
+          <Label required>Bank Account Number / बैंक खाता संख्या</Label>
+          <Input
+            type="text"
+            inputMode="numeric"
+            placeholder="Enter 9–18 digit Account Number"
+            value={data.bankAccountNumber || ''}
+            onChange={(e) => upd('bankAccountNumber', e.target.value.replace(/\D/g, '').slice(0, 18))}
+            error={errors.bankAccountNumber}
+          />
+          <p className="text-[11px] text-gray-500 mt-1">Account number for receiving direct crop payments</p>
+        </div>
+
+        {/* Confirm Account Number */}
+        <div>
+          <Label required>Confirm Account Number / खाता संख्या की पुष्टि</Label>
+          <div className="relative">
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Re-enter Account Number"
+              value={data.confirmBankAccountNumber || ''}
+              onChange={(e) => upd('confirmBankAccountNumber', e.target.value.replace(/\D/g, '').slice(0, 18))}
+              className={`w-full px-3 py-3 text-sm border rounded-lg outline-none transition-all ${
+                errors.confirmBankAccountNumber
+                  ? 'border-red-400 bg-red-50/20'
+                  : data.confirmBankAccountNumber && data.bankAccountNumber === data.confirmBankAccountNumber
+                  ? 'border-emerald-500 bg-emerald-50/30'
+                  : data.confirmBankAccountNumber && data.bankAccountNumber !== data.confirmBankAccountNumber
+                  ? 'border-red-400 bg-red-50/20'
+                  : 'border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-100'
+              }`}
+            />
+            {data.confirmBankAccountNumber && (
+              <span className="absolute right-3 top-3 text-xs font-bold">
+                {data.bankAccountNumber === data.confirmBankAccountNumber ? (
+                  <span className="text-emerald-600 flex items-center gap-1">
+                    <Check className="w-4 h-4 stroke-[3]" /> Matched
+                  </span>
+                ) : (
+                  <span className="text-red-500">Doesn't match</span>
+                )}
+              </span>
+            )}
+          </div>
+          {errors.confirmBankAccountNumber && (
+            <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              {data.confirmBankAccountNumber && data.bankAccountNumber !== data.confirmBankAccountNumber
+                ? 'Account numbers do not match'
+                : 'Please confirm your account number'}
+            </p>
+          )}
+          {!errors.confirmBankAccountNumber && (
+            <p className="text-[11px] text-gray-500 mt-1">Re-enter to ensure 100% accuracy</p>
+          )}
+        </div>
+
+        {/* IFSC Code */}
+        <div>
+          <Label required>IFSC Code / आईएफएससी कोड</Label>
+          <Input
+            placeholder="e.g. SBIN0001234"
+            maxLength={11}
+            value={data.bankIfsc || ''}
+            onChange={(e) => upd('bankIfsc', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11))}
+            error={errors.bankIfsc}
+          />
+          <p className="text-[11px] text-gray-500 mt-1">11-character code found on passbook or cheque</p>
+        </div>
+
+        {/* Branch Name */}
+        <div>
+          <Label>Branch Name / शाखा का नाम</Label>
+          <Input
+            placeholder="e.g. Yeola / Nashik Main"
+            value={data.bankBranch || ''}
+            onChange={(e) => upd('bankBranch', e.target.value)}
+          />
+          <p className="text-[11px] text-gray-500 mt-1">Town or district branch of your bank</p>
+        </div>
+
+        {/* Account Type */}
+        <FullRow>
+          <Label>Account Type / खाता प्रकार</Label>
+          <RadioGroup
+            name="accountType"
+            options={['Savings Account (बचत)', 'Current Account (चालू)', 'Kisan Credit Card (KCC)']}
+            value={data.accountType || 'Savings Account (बचत)'}
+            onChange={(v) => upd('accountType', v)}
+          />
+        </FullRow>
+
+        {/* Optional UPI ID / VPA */}
+        <div>
+          <Label>UPI ID / VPA (Optional / वैकल्पिक)</Label>
+          <Input
+            placeholder="e.g. 9876543210@upi / name@sbi"
+            value={data.bankUpi || ''}
+            onChange={(e) => upd('bankUpi', e.target.value.toLowerCase().trim())}
+          />
+          <p className="text-[11px] text-gray-500 mt-1">For instant small token payments & mandi notifications</p>
+        </div>
+
+        {/* Aadhaar-Bank / DBT Linkage Checkbox */}
+        <div className="flex items-center">
+          <label className="flex items-start gap-3 p-3.5 border border-gray-200 rounded-xl bg-gray-50/70 hover:bg-white cursor-pointer transition w-full">
+            <input
+              type="checkbox"
+              checked={data.isDbtLinked ?? true}
+              onChange={(e) => upd('isDbtLinked', e.target.checked)}
+              className="w-4 h-4 mt-0.5 rounded text-teal-600 focus:ring-teal-500 border-gray-300 cursor-pointer"
+            />
+            <div className="text-xs">
+              <span className="font-bold text-gray-800 flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5 text-teal-600 stroke-[3]" />
+                Aadhaar Seeded / DBT Linked (आधार लिंक खाता)
+              </span>
+              <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
+                This bank account is linked with Aadhaar & NPCI for direct government schemes & PM-KISAN benefits.
+              </p>
+            </div>
+          </label>
+        </div>
+
+        {/* Passbook / Cancelled Cheque upload (Optional) */}
+        <FullRow>
+          <Label>Upload Bank Passbook / Cancelled Cheque (Optional)</Label>
+          <label className="border-2 border-dashed border-gray-200 hover:border-teal-400 rounded-xl p-4 text-center cursor-pointer transition bg-gray-50/50 hover:bg-white relative block">
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              className="sr-only"
+              onChange={(e) => {
+                if (e.target.files?.[0]) upd('bankPassbookDoc', e.target.files[0].name);
+              }}
+            />
+            <CreditCard className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+            <p className="text-xs font-semibold text-gray-700">
+              {data.bankPassbookDoc ? `📄 ${data.bankPassbookDoc}` : 'Upload Passbook Front Page or Cancelled Cheque'}
+            </p>
+            <p className="text-[10px] text-gray-400">PDF, JPG, PNG up to 5MB (Used for fast-track verification)</p>
+          </label>
         </FullRow>
       </SectionCard>
     </div>
@@ -885,7 +1403,12 @@ function Step3({ selectedRole, roleDetails, onChange, onNext, onPrev }) {
       if (!d.village) e.village = 'Required';
       if (!d.pincode) e.pincode = 'Required';
       if (!d.landArea) e.landArea = 'Required';
-      if (!d.primaryCrop) e.primaryCrop = 'Required';
+      if (!d.aadharNumber || d.aadharNumber.replace(/\s/g, '').length < 12) e.aadharNumber = 'Required';
+      if (!d.bankHolderName?.trim()) e.bankHolderName = 'Account Holder Name is required';
+      if (!d.bankName) e.bankName = 'Bank Name is required';
+      if (!d.bankAccountNumber || d.bankAccountNumber.length < 9) e.bankAccountNumber = 'Valid Account Number (min 9 digits) is required';
+      if (!d.confirmBankAccountNumber || d.bankAccountNumber !== d.confirmBankAccountNumber) e.confirmBankAccountNumber = 'Account numbers must match';
+      if (!d.bankIfsc || d.bankIfsc.length < 11) e.bankIfsc = '11-character IFSC code is required';
     }
     if (selectedRole === 'fpo') {
       if (!d.name) e.name = 'Required';
@@ -925,7 +1448,7 @@ function Step3({ selectedRole, roleDetails, onChange, onNext, onPrev }) {
         </div>
       </div>
 
-      {selectedRole === 'farmer' && <FarmerForm data={roleDetails.farmer || {}} onChange={onChange} />}
+      {selectedRole === 'farmer' && <FarmerForm data={roleDetails.farmer || {}} onChange={onChange} errors={errors} />}
       {selectedRole === 'fpo' && <FpoForm data={roleDetails.fpo || {}} onChange={onChange} />}
       {selectedRole === 'buyer' && <BuyerForm data={roleDetails.buyer || {}} onChange={onChange} />}
 
@@ -963,9 +1486,10 @@ function Step4({ basicDetails, selectedRole, roleDetails, onGoToDashboard, onEdi
       { label: 'Role', value: 'Farmer 🌾' },
       { label: 'Name', value: basicDetails.name },
       { label: 'Location', value: [rd.district, rd.state].filter(Boolean).join(', ') || '—' },
-      { label: 'Primary Crop', value: rd.primaryCrop || '—' },
+      { label: 'Aadhaar Verification', value: rd.aadharNumber ? `Verified (•••• ${rd.aadharNumber.replace(/\s/g, '').slice(-4)})` : (rd.isAadhaarVerified ? 'Verified ✅' : 'Pending') },
+      { label: 'Bank Account', value: rd.bankAccountNumber ? `${rd.bankName === 'Other Bank' ? (rd.otherBankName || 'Bank') : (rd.bankName || 'Bank')} (•••• ${rd.bankAccountNumber.slice(-4)})` : '—' },
       { label: 'Farm Size', value: rd.landArea ? `${rd.landArea} ${rd.landUnit || 'Acre'}` : '—' },
-      { label: 'Farming Type', value: rd.farmingType || '—' },
+      { label: 'Land Ownership', value: rd.ownership || 'Own' },
     ],
     fpo: [
       { label: 'Role', value: 'FPO 🤝' },
@@ -1080,20 +1604,45 @@ export default function RegistrationFlow({ onComplete, onBack, initialRole = '',
     setMaxStep(p => Math.max(p, s));
   };
 
-  const handleSendOtp = () => {
-    if (basicDetails.mobile.length === 10) {
-      setOtpSent(true);
+  const [receivedOtpCode, setReceivedOtpCode] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+
+  const handleSendOtp = async () => {
+    const clean = basicDetails.mobile.replace(/\D/g, '');
+    if (clean.length === 10) {
+      setOtpLoading(true);
+      try {
+        const res = await authService.sendOtp(clean, selectedRole || 'farmer');
+        if (res.success) {
+          setOtpSent(true);
+          setReceivedOtpCode(res.otp);
+        }
+      } catch (err) {
+        console.warn('[RegistrationFlow] sendOtp error:', err);
+      } finally {
+        setOtpLoading(false);
+      }
     }
   };
 
-  const handleVerifyOtp = (providedOtp) => {
+  const handleVerifyOtp = async (providedOtp) => {
     const code = Array.isArray(providedOtp) ? providedOtp.join('') : otp.join('');
     if (code.length === 4) {
-      setOtpVerified(true);
+      setOtpLoading(true);
+      try {
+        const res = await authService.verifyOtp(basicDetails.mobile, code, selectedRole || 'farmer');
+        if (res.success) {
+          setOtpVerified(true);
+        }
+      } catch (err) {
+        console.warn('[RegistrationFlow] verifyOtp error:', err);
+      } finally {
+        setOtpLoading(false);
+      }
     }
   };
 
-  const handleGoToDashboard = (basic, role, rd) => {
+  const handleGoToDashboard = async (basic, role, rd) => {
     const chosenRole = role || 'farmer';
     const user = {
       name: basic.name,
@@ -1103,10 +1652,45 @@ export default function RegistrationFlow({ onComplete, onBack, initialRole = '',
       location: rd.district || rd.city || 'Nashik, Maharashtra',
       state: rd.state || 'Maharashtra',
       photoPreview: basic.photoPreview,
-      ...(chosenRole === 'farmer' ? { primaryCrop: rd.primaryCrop || 'Wheat', landArea: rd.landArea || '5', landUnit: rd.landUnit || 'Acre', farmingType: rd.farmingType || 'Natural' } : {}),
+      ...(chosenRole === 'farmer' ? {
+        primaryCrop: rd.primaryCrop || 'Wheat',
+        landArea: rd.landArea || '5',
+        landUnit: rd.landUnit || 'Acre',
+        farmingType: rd.farmingType || 'Natural',
+        bankDetails: {
+          accountHolderName: rd.bankHolderName || basic.name,
+          bankName: rd.bankName === 'Other Bank' ? (rd.otherBankName || 'Other Bank') : (rd.bankName || ''),
+          accountNumber: rd.bankAccountNumber || '',
+          ifscCode: rd.bankIfsc || '',
+          branchName: rd.bankBranch || '',
+          accountType: rd.accountType || 'Savings Account (बचत)',
+          upiId: rd.bankUpi || '',
+          isDbtLinked: rd.isDbtLinked ?? true,
+          bankPassbookDoc: rd.bankPassbookDoc || null,
+        }
+      } : {}),
       ...(chosenRole === 'fpo' ? { fpoName: rd.name || 'Sahyadri Farmers Producer Co.', totalMembers: rd.totalMembers || '350' } : {}),
       ...(chosenRole === 'buyer' ? { businessName: rd.businessName || 'Kisan Agro Traders', buyerType: rd.buyerType || 'Wholesaler' } : {}),
     };
+
+    // Save profile directly into Supabase user_profiles
+    try {
+      await authService.registerUser({
+        phone: user.phone,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        village: rd.village || rd.city || 'Yeola',
+        district: rd.district || 'Nashik',
+        state: user.state || 'Maharashtra',
+        pincode: rd.pincode || '',
+        avatar: user.photoPreview || (chosenRole === 'fpo' ? '🏢' : chosenRole === 'buyer' ? '🏢' : '👨‍🌾'),
+        details: rd
+      });
+    } catch (e) {
+      console.warn('[RegistrationFlow] registerUser error:', e);
+    }
+
     onComplete(user, chosenRole);
   };
 
@@ -1178,6 +1762,8 @@ export default function RegistrationFlow({ onComplete, onBack, initialRole = '',
             otp={otp}
             setOtp={setOtp}
             t={t}
+            receivedOtpCode={receivedOtpCode}
+            otpLoading={otpLoading}
           />
         )}
         {step === 2 && (

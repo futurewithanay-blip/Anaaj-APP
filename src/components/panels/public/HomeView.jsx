@@ -1,29 +1,11 @@
 import React, { useState } from 'react';
 import {
   Sprout,
-  TrendingUp,
   ArrowRight,
-  ShieldCheck,
-  Zap,
-  Sparkles,
-  Users,
   Building2,
-  PhoneCall,
-  Search,
-  CheckCircle2,
-  Award,
-  Layers,
-  Globe,
-  MapPin,
-  HelpCircle,
-  Truck
+  Layers
 } from 'lucide-react';
 import HeroCarousel from '../../common/HeroCarousel';
-import PricePredictionCard from '../../common/PricePredictionCard';
-import NetProfitCalculator from '../../common/NetProfitCalculator';
-import WeatherWidget from '../../common/WeatherWidget';
-import MandiMap from '../../common/MandiMap';
-import { MANDI_COMMODITIES } from '../../../data/mandiData';
 
 export default function HomeView({
   setCurrentView,
@@ -50,76 +32,59 @@ export default function HomeView({
         lang={lang}
       />
 
-      {/* 📊 CORE PILLAR MODULES */}
-      
-      {/* 1. AI Price Forecasting & Sell/Hold Advisory */}
-      <section className="space-y-4">
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-            {t?.pillar1Badge || "Pillar 1: Price Intelligence"}
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 font-heading">
-            {t?.pillar1Title || "AI Price Prediction & Sell/Hold Recommendations"}
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-500">
-            {t?.pillar1Desc || "Tackle distress selling with forward 15-day price trajectories and multi-market arrival trends."}
+
+      {/* 🎯 ROLE ENTRY QUICK ACCESS — 3 Portals */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div
+          onClick={() => onEnterPanel && onEnterPanel('farmer')}
+          className="cursor-pointer group bg-gradient-to-br from-emerald-800 to-green-900 text-white rounded-3xl p-7 shadow-xl shadow-emerald-900/20 border border-emerald-700/30 hover:scale-[1.02] transition-all relative overflow-hidden"
+        >
+          <div className="absolute right-0 top-0 w-40 h-40 bg-white/5 rounded-full -translate-y-10 translate-x-10 blur-2xl" />
+          <div className="w-12 h-12 bg-white/15 rounded-2xl flex items-center justify-center mb-4 text-2xl">👨‍🌾</div>
+          <div className="text-emerald-300 text-xs font-bold uppercase tracking-wider mb-2">Farmer Portal</div>
+          <h3 className="text-xl font-black font-heading mb-2">Kisan Dashboard</h3>
+          <p className="text-xs text-emerald-100/80 leading-relaxed mb-4">
+            List your crops, get AI price advisory, compare mandi profits, and connect with verified institutional buyers.
           </p>
+          <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 group-hover:text-white transition">
+            <Sprout className="w-4 h-4" /> Enter Farmer Panel <ArrowRight className="w-3.5 h-3.5 ml-auto group-hover:translate-x-1 transition" />
+          </div>
         </div>
 
-        <PricePredictionCard t={t} />
-      </section>
-
-      {/* 2. Smart Net Profit Discovery Calculator */}
-      <section className="space-y-4">
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
-            {t?.pillar2Badge || "Pillar 2: Real Take-Home Discovery"}
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 font-heading">
-            {t?.pillar2Title || "True Net Profit Calculator (Not Just Highest Price)"}
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-500">
-            {t?.pillar2Desc || "Deducts transport freight, loading, mandi cess, and storage days to show the truly profitable market."}
+        <div
+          onClick={() => onEnterPanel && onEnterPanel('fpo')}
+          className="cursor-pointer group bg-gradient-to-br from-amber-800 to-orange-900 text-white rounded-3xl p-7 shadow-xl shadow-amber-900/20 border border-amber-700/30 hover:scale-[1.02] transition-all relative overflow-hidden"
+        >
+          <div className="absolute right-0 top-0 w-40 h-40 bg-white/5 rounded-full -translate-y-10 translate-x-10 blur-2xl" />
+          <div className="w-12 h-12 bg-white/15 rounded-2xl flex items-center justify-center mb-4 text-2xl">🤝</div>
+          <div className="text-amber-300 text-xs font-bold uppercase tracking-wider mb-2">FPO Portal</div>
+          <h3 className="text-xl font-black font-heading mb-2">FPO Aggregator</h3>
+          <p className="text-xs text-amber-100/80 leading-relaxed mb-4">
+            Pool smallholder lots into bulk consignments, unlock institutional contracts, and distribute transparent payouts to members.
           </p>
+          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300 group-hover:text-white transition">
+            <Layers className="w-4 h-4" /> Enter FPO Panel <ArrowRight className="w-3.5 h-3.5 ml-auto group-hover:translate-x-1 transition" />
+          </div>
         </div>
 
-        <NetProfitCalculator t={t} />
-      </section>
-
-      {/* 3. GIS Mandi & Cold Storage Map */}
-      <section className="space-y-4">
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-sky-700 bg-sky-50 px-3 py-1 rounded-full border border-sky-200">
-            {t?.pillar3Badge || "Pillar 3: Geospatial Discovery"}
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 font-heading">
-            {t?.pillar3Title || "Interactive APMC Mandi & Storage Map"}
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-500">
-            {t?.pillar3Desc || "Find nearby markets, active buyers, and WDRA accredited cold storages within your district radius."}
+        <div
+          onClick={() => onEnterPanel && onEnterPanel('buyer')}
+          className="cursor-pointer group bg-gradient-to-br from-blue-800 to-indigo-900 text-white rounded-3xl p-7 shadow-xl shadow-blue-900/20 border border-blue-700/30 hover:scale-[1.02] transition-all relative overflow-hidden"
+        >
+          <div className="absolute right-0 top-0 w-40 h-40 bg-white/5 rounded-full -translate-y-10 translate-x-10 blur-2xl" />
+          <div className="w-12 h-12 bg-white/15 rounded-2xl flex items-center justify-center mb-4 text-2xl">🏢</div>
+          <div className="text-blue-300 text-xs font-bold uppercase tracking-wider mb-2">Buyer Portal</div>
+          <h3 className="text-xl font-black font-heading mb-2">Buyer Hub</h3>
+          <p className="text-xs text-blue-100/80 leading-relaxed mb-4">
+            Source verified crop lots directly from farmers, post procurement requirements, and manage escrow-protected bulk deals.
           </p>
+          <div className="flex items-center gap-1.5 text-xs font-bold text-blue-300 group-hover:text-white transition">
+            <Building2 className="w-4 h-4" /> Enter Buyer Panel <ArrowRight className="w-3.5 h-3.5 ml-auto group-hover:translate-x-1 transition" />
+          </div>
         </div>
-
-        <MandiMap t={t} />
       </section>
 
-      {/* 4. Meghdoot Agromet Weather Advisory */}
-      <section className="space-y-4">
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200">
-            {t?.pillar4Badge || "Pillar 4: Weather & Advisory"}
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 font-heading">
-            {t?.pillar4Title || "Meghdoot / IMD Agromet District Bulletin"}
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-500">
-            {t?.pillar4Desc || "Localized sowing, pesticide spray, and harvest advisories synchronized with district weather conditions."}
-          </p>
-        </div>
-
-        <WeatherWidget t={t} />
-      </section>
-
+        
       {/* 🌟 6 KEY PLATFORM DIFFERENTIATORS (SIH 2026 PITCH HIGHLIGHTS) */}
       <section className="bg-slate-900 text-white rounded-3xl p-8 sm:p-12 space-y-8">
         <div className="text-center max-w-2xl mx-auto space-y-2">
