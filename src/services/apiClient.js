@@ -4,7 +4,7 @@
  * Falls back to verified official government benchmark algorithms if backend is offline.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://anaaj-backend-kh66.onrender.com';
 
 let _backendAvailable = null;
 let _lastCheckTime = 0;
