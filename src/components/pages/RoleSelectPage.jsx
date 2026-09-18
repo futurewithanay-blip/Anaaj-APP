@@ -176,7 +176,7 @@ export default function RoleSelectPage({ onSelectRole, onBack, lang = 'en', setL
 
       {/* Bottom note */}
       <p className="text-center text-slate-400 text-xs mt-10">
-        🔒 All data is secured under Government of India Digital Infrastructure • SIH 2026 Prototype
+        🔒 All data is secured under Government of India Digital Infrastructure & 256-bit Encryption
       </p>
     </div>
   );

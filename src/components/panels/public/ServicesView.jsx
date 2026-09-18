@@ -66,7 +66,7 @@ export default function ServicesView({ setCurrentRole, setCurrentView, t }) {
             Comprehensive Digital Agricultural Services
           </h1>
           <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-            Designed to address all 30 panel-wise and cross-cutting specifications for Smart India Hackathon 2026 (Problem Statement ID: 26132).
+            Comprehensive institutional-grade digital market linkage, transparent price discovery, and agricultural supply chain services.
           </p>
         </div>
       </div>

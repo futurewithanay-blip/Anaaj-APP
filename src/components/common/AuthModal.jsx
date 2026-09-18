@@ -221,11 +221,11 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', onLo
             </form>
           )}
 
-          {/* Quick Demo Test Buttons for Hackathon Judges */}
+          {/* Quick Demo Test Buttons */}
           <div className="pt-4 border-t border-slate-100">
             <div className="flex items-center gap-1.5 text-xs text-amber-600 font-bold mb-2">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>⚡ One-Click Instant Demo Access (Hackathon Judges):</span>
+              <span>⚡ One-Click Instant Preview Access:</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               <button

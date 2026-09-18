@@ -85,7 +85,7 @@ export default function HomeView({
       </section>
 
         
-      {/* 🌟 6 KEY PLATFORM DIFFERENTIATORS (SIH 2026 PITCH HIGHLIGHTS) */}
+      {/* 🌟 6 KEY PLATFORM DIFFERENTIATORS */}
       <section className="bg-slate-900 text-white rounded-3xl p-8 sm:p-12 space-y-8">
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <span className="text-xs font-bold text-amber-400 uppercase tracking-wider bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
@@ -95,7 +95,7 @@ export default function HomeView({
             Why <span className="text-amber-400 font-serif">अ</span>naaj ("THE FARMER'S DIGITAL MARKET") Changes Rural Trade
           </h2>
           <p className="text-xs sm:text-sm text-slate-400">
-            Addressing Problem Statement 26132 for SIH 2026
+            {t.homeDiffSub || "Next-Generation Digital Infrastructure for Agricultural Commerce & Price Discovery"}
           </p>
         </div>
 

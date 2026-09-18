@@ -662,7 +662,7 @@ function Step1({ data, onChange, onNext, otpSent, otpVerified, onSendOtp, onVeri
               </button>
             </div>
             <div className="text-xs text-gray-600 space-y-2 max-h-60 overflow-y-auto leading-relaxed pr-1">
-              <p>1. <strong>Platform Access</strong>: Anaaj is a smart digital agricultural marketplace connecting farmers, FPOs, and verified buyers across India under SIH 2026 guidelines.</p>
+              <p>1. <strong>Platform Access</strong>: Anaaj is a smart digital agricultural marketplace connecting farmers, FPOs, and verified buyers across India under verified fair trade and digital agricultural guidelines.</p>
               <p>2. <strong>Crop Declarations</strong>: All registered crop lots, quantities, and quality parameters must be truthful and subject to mandi or warehouse quality verification.</p>
               <p>3. <strong>Pricing & Transactions</strong>: Price predictions are AI-assisted estimates based on real mandi arrival patterns and historical futures data.</p>
               <p>4. <strong>Security & Fair Trade</strong>: Users agree not to post deceptive listings or manipulate bids. Violations will result in immediate suspension.</p>

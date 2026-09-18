@@ -10,15 +10,15 @@ export default function AboutView({ t }) {
         <div className="max-w-3xl space-y-3">
           <div className="flex items-center gap-2">
             <span className="bg-amber-400/20 text-amber-300 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-amber-400/30">
-              Smart India Hackathon 2026
+              National AgriTech Initiative
             </span>
-            <span className="text-xs text-slate-300">Problem Statement ID: 26132</span>
+            <span className="text-xs text-slate-300">Unified Digital Mandi Intelligence</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black font-heading tracking-tight flex items-center">
             About <span className="text-amber-400 font-serif font-black ml-1.5 mr-0.5">अ</span>naaj — THE FARMER'S DIGITAL MARKET
           </h1>
           <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-            Smart Market Linkage & Price Discovery Platform developed for the <strong>Government of Maharashtra — Maharashtra State Innovation Society</strong> under the Agriculture, FoodTech & Rural Development theme.
+            Smart Market Linkage & Price Discovery Platform empowering Indian agriculture under the Agriculture, FoodTech & Rural Prosperity mission.
           </p>
         </div>
       </div>

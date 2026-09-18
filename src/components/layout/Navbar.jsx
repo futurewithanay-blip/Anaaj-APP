@@ -64,7 +64,7 @@ export default function Navbar({
                 </span>
               </div>
               <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider hidden sm:block">
-                THE FARMER'S DIGITAL MARKET • SIH 2026
+                {t.navBrandSubtitle || "THE FARMER'S DIGITAL MARKET"}
               </p>
             </div>
           </div>

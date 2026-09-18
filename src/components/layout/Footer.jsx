@@ -20,7 +20,7 @@ export default function Footer({ setCurrentView, setLang }) {
                   <span className="text-amber-400 font-serif font-black text-3xl">अ</span>naaj
                 </span>
                 <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">THE FARMER'S DIGITAL MARKET</p>
-                <p className="text-[10px] text-slate-400">SIH 2026 • PS ID: 26132</p>
+                <p className="text-[10px] text-slate-400">Unified Mandi & Agri-Commerce Platform</p>
               </div>
             </div>
 
@@ -30,7 +30,7 @@ export default function Footer({ setCurrentView, setLang }) {
 
             <div className="flex items-center gap-2 text-xs text-amber-400/90 font-medium">
               <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <span>Govt. of Maharashtra Innovation Society</span>
+              <span>Digital Agriculture & Market Linkage Initiative</span>
             </div>
           </div>
 
@@ -126,11 +126,11 @@ export default function Footer({ setCurrentView, setLang }) {
         {/* Bottom Strip */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div>
-            © 2026 <strong className="text-slate-300">अnaaj ("THE FARMER'S DIGITAL MARKET")</strong> — Smart India Hackathon Prototype. Developed for Maharashtra State Innovation Society.
+            © 2026 <strong className="text-slate-300">अnaaj ("THE FARMER'S DIGITAL MARKET")</strong>. All rights reserved. National Agricultural Market Linkage & Price Discovery Platform.
           </div>
 
           <div className="flex items-center gap-6">
-            <button onClick={() => setCurrentView('about')} className="hover:text-slate-300">About SIH 2026</button>
+            <button onClick={() => setCurrentView('about')} className="hover:text-slate-300">About Anaaj</button>
             <button onClick={() => setCurrentView('schemes')} className="hover:text-slate-300">Schemes</button>
           </div>
         </div>

@@ -12,7 +12,8 @@ import {
   Globe,
   Pause,
   Play,
-  PhoneCall
+  PhoneCall,
+  Mic
 } from 'lucide-react';
 
 export default function HeroCarousel({
@@ -30,13 +31,13 @@ export default function HeroCarousel({
     {
       id: 1,
       image: '/hero_slide1.jpg',
-      badgeText: 'SMART INDIA HACKATHON 2026 • PS ID: 26132',
+      badgeText: 'NATIONAL AGRI-MARKET INTELLIGENCE • APMC e-NAM LINKAGE',
       badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30',
       titlePart1: 'Empowering Farmers with',
       titleHighlight: 'AI Mandi Price Discovery',
       titlePart2: '& Market Linkage',
       quote: '"Empowering India\'s Annadata: Connecting fields directly to verified processors and bulk buyers with real-time AI price forecasts and net take-home profit discovery."',
-      primaryBtnText: 'Enter Farmer Panel',
+      primaryBtnText: 'Enter Farmer Panel →',
       primaryRole: 'farmer'
     },
     {
@@ -137,6 +138,14 @@ export default function HeroCarousel({
             
 
 
+            {/* Badge Indicator */}
+            <div>
+              <span className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-wider backdrop-blur-md border shadow-sm ${slide.badgeColor}`}>
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>{slide.badgeText}</span>
+              </span>
+            </div>
+
             {/* Main Headline */}
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black font-heading tracking-tight leading-[1.15]">
               {slide.titlePart1} <br />
@@ -154,6 +163,32 @@ export default function HeroCarousel({
               <p className="text-[11px] font-bold text-harvest-400 uppercase tracking-widest mt-2.5 not-italic">
                 — अnaaj ("THE FARMER'S DIGITAL MARKET")
               </p>
+            </div>
+
+            {/* Quick Action CTAs */}
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <button
+                onClick={() => onEnterPanel && onEnterPanel(slide.primaryRole || 'farmer')}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 via-agri-600 to-emerald-600 hover:from-emerald-600 hover:to-agri-700 text-white font-extrabold text-sm shadow-xl shadow-emerald-950/40 hover:scale-[1.03] transition-all cursor-pointer"
+              >
+                <span>{slide.primaryBtnText || 'Enter Platform'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={onOpenVoiceBot}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm backdrop-blur-md border border-white/20 transition-all cursor-pointer hover:border-emerald-400/50"
+              >
+                <Mic className="w-4 h-4 text-emerald-400" />
+                <span>Kisan Voice AI</span>
+              </button>
+
+              <button
+                onClick={onOpenSmsModal}
+                className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-900/60 hover:bg-slate-800 text-harvest-300 font-semibold text-xs border border-harvest-500/30 transition cursor-pointer"
+              >
+                <span>SMS Mode (*99#)</span>
+              </button>
             </div>
 
 
