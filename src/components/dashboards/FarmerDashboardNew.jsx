@@ -1671,6 +1671,7 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
     { id: 'offers', label: t?.buyerOffers || 'Buyer Offers', icon: ShoppingBag },
     { id: 'payments', label: t?.dashPayments || 'Payments', icon: CreditCard },
     { id: 'reviews', label: t?.dashReviews || 'Buyer Ratings', icon: Star },
+    { id: 'chat', label: 'Buyer Negotiation Chat', icon: MessageSquare },
     { id: 'logistics', label: t?.dashLogistics || 'Farm Logistics', icon: Truck },
     { id: 'weather', label: t?.dashWeather || t?.weatherAdvisory || 'Weather', icon: CloudSun },
     { id: 'help', label: t?.dashHelp || t?.disputeRedressal || 'Help & Support', icon: HelpCircle },
@@ -1695,6 +1696,7 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
         return <MyCrops crops={cropsList} onAddCrop={handleAddCrop} farmerProfile={farmerProfile} />;
       case 'market':
         return <MarketPrices t={t} lang={lang} />;
+      case 'storage':
       case 'ai-storage':
         return (
           <div className="space-y-5 max-w-7xl mx-auto">
@@ -1937,7 +1939,7 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
             {activeSection !== 'dashboard' && (
               <>
                 <ChevronRight className="w-3 h-3" />
-                <span className="text-slate-600 font-semibold capitalize">{NAV_ITEMS.find(n => n.id === activeSection)?.label}</span>
+                <span className="text-slate-600 font-semibold capitalize">{(navItems.find(n => n.id === activeSection) || NAV_ITEMS.find(n => n.id === activeSection))?.label || activeSection}</span>
               </>
             )}
           </div>

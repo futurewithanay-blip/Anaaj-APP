@@ -4,7 +4,7 @@ import {
   CreditCard, Truck, Star, MessageCircle, Bell, HelpCircle, LogOut,
   Globe, Menu, X, MapPin, CheckCircle2, ArrowUpRight, ArrowDownRight,
   Briefcase, Bookmark, BookmarkCheck, Filter, SlidersHorizontal,
-  ChevronDown, ChevronUp, Download, AlertTriangle, RefreshCw, Plus,
+  ChevronDown, ChevronUp, ChevronRight, Download, AlertTriangle, RefreshCw, Plus,
   Shield, UserCircle, Upload, Clock, Send, Edit2, Trash2, Phone,
   TrendingUp, Zap, Award, Building2, Key, ExternalLink
 } from 'lucide-react';
@@ -2480,6 +2480,19 @@ export default function BuyerDashboardNew({ user, onLogout, lang: appLang = 'en'
 
         {/* Content Area */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 bg-slate-50">
+          {/* Breadcrumb Navigation */}
+          <div className="flex items-center gap-2 text-xs text-slate-400 mb-5">
+            <span className="hover:text-blue-600 cursor-pointer" onClick={() => setActiveSection('dashboard')}>Dashboard</span>
+            {activeSection !== 'dashboard' && (
+              <>
+                <ChevronRight className="w-3 h-3" />
+                <span className="text-slate-600 font-semibold capitalize">
+                  {navItems.find(n => n.id === activeSection)?.label || activeSection}
+                </span>
+              </>
+            )}
+          </div>
+
           <div className="animate-in fade-in duration-200">
             {renderSection()}
           </div>

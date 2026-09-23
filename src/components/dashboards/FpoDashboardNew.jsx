@@ -6,7 +6,8 @@ import {
   LayoutDashboard, PackagePlus, Handshake, Package, CreditCard,
   PieChart, MessageSquare, BookOpen, FileText, HelpCircle,
   ArrowUpRight, ArrowDownRight, ShoppingCart, MapPin,
-  CloudSun, Warehouse, MessageCircle, Edit2, Star, Sparkles, Check, XCircle
+  CloudSun, Warehouse, MessageCircle, Edit2, Star, Sparkles, Check, XCircle,
+  Download, Eye, Upload, ShieldCheck, CheckCircle2, Clock, ExternalLink, Filter
 } from 'lucide-react';
 import { translations } from '../../i18n/translations';
 import UserProfileModal from '../common/UserProfileModal';
@@ -274,15 +275,1008 @@ function DashboardOverview({ farmers: farmersProp, onNavigate }) {
   );
 }
 
-function SimplePlaceholder({ title, icon, description }) {
+// ─── FPO Government Schemes & Grants View ──────────────────────────────────
+const FPO_SCHEMES_LIST = [
+  {
+    id: 'sfac-equity-grant',
+    name: 'SFAC Equity Grant Scheme for FPCs',
+    category: 'Direct Grants',
+    ministry: 'Small Farmers Agribusiness Consortium (SFAC), Ministry of Agriculture',
+    benefit: 'Matching equity grant up to ₹15 Lakh per FPO in 1:1 ratio against farmer members equity contribution.',
+    eligibility: 'Registered Farmer Producer Company with min. 300 active shareholder farmers (100 in NE/Hilly regions).',
+    targetAudience: 'FPO Federations & Producer Companies',
+    keyDocuments: ['MCA Certificate of Incorporation', 'Audited Balance Sheet (last 1-2 yrs)', 'List of Shareholder Farmers with land records', 'Bank Account Verification'],
+    applyUrl: 'https://sfacindia.com/Equity-Grant-Scheme.aspx',
+    status: 'Open for Application',
+    grantAmount: 'Up to ₹15,00,000 Direct Grant',
+    tags: ['Matching Grant', 'Equity Support', 'SFAC Govt']
+  },
+  {
+    id: 'nabard-credit-guarantee',
+    name: 'NABSanrakshan / NABARD Credit Guarantee Scheme (CGFS)',
+    category: 'Credit Guarantees',
+    ministry: 'NABARD & Dept of Agriculture & Farmers Welfare',
+    benefit: 'Collateral-free credit guarantee cover up to 85% for loans up to ₹1 Cr, and 75% for loans up to ₹2 Cr.',
+    eligibility: 'Registered FPOs seeking institutional credit from Commercial Banks, RRBs, or Cooperative Banks for working capital/term loans.',
+    targetAudience: 'FPOs expanding Bulk Trade & Aggregation',
+    keyDocuments: ['FPO Business Plan & DPR', 'Board Resolution for Borrowing', 'Bank Sanction Letter', 'Farmer Member Base KYC'],
+    applyUrl: 'https://www.nabsanrakshan.org/',
+    status: 'Active All Year',
+    grantAmount: 'Up to ₹2,00,00,000 Guarantee',
+    tags: ['Collateral Free', 'Credit Guarantee', 'NABARD']
+  },
+  {
+    id: 'central-10000-fpo',
+    name: 'Central Sector Scheme for Formation & Promotion of 10,000 FPOs',
+    category: 'Direct Grants',
+    ministry: 'Ministry of Agriculture & Farmers Welfare, GoI',
+    benefit: 'Financial assistance of ₹18.00 Lakh per FPO for initial 3 years for management costs + designated CBBO mentoring.',
+    eligibility: 'FPOs mobilized through designated Cluster-Based Business Organizations (CBBOs) or federated producer groups.',
+    targetAudience: 'New & Developing FPOs',
+    keyDocuments: ['Registration Document under Companies Act or State Co-op Societies Act', 'CBBO Recommendation Letter', 'Geo-tagged Office Setup'],
+    applyUrl: 'https://enam.gov.in/web/fpo',
+    status: 'Active',
+    grantAmount: '₹18,00,000 over 3 Yrs',
+    tags: ['CBBO Support', 'Management Cost', 'Central Scheme']
+  },
+  {
+    id: 'aif-infra',
+    name: 'Agriculture Infrastructure Fund (AIF) for FPOs',
+    category: 'Infra & Storage',
+    ministry: 'Department of Agriculture & Farmers Welfare',
+    benefit: '3% Interest Subvention per annum up to loan limit of ₹2 Crore for 7 years for Cold Storages, Warehouses, Sorting & Grading lines.',
+    eligibility: 'FPOs, Cooperatives, and Agri-entrepreneurs creating post-harvest management infrastructure.',
+    targetAudience: 'FPOs investing in Packhouses & Silos',
+    keyDocuments: ['Detailed Project Report (DPR)', 'Land Possession / Lease Document (min 10 yrs)', 'Statutory Approvals & Layout Plan'],
+    applyUrl: 'https://agriinfra.dac.gov.in/',
+    status: 'Active',
+    grantAmount: '3% Interest Subvention',
+    tags: ['Cold Storage', 'Warehousing', 'Post-Harvest']
+  },
+  {
+    id: 'operation-greens',
+    name: 'Operation Greens — TOP to TOTAL (MoFPI)',
+    category: 'Infra & Storage',
+    ministry: 'Ministry of Food Processing Industries (MoFPI)',
+    benefit: '50% Subsidy on transportation and 50% subsidy on storage for Tomato, Onion, Potato, and 22 perishable notified crops.',
+    eligibility: 'FPOs, Food Processors, and Logistics Aggregators transporting perishables through Kisan Rail or accredited cold storage.',
+    targetAudience: 'Vegetable & Fruit FPOs',
+    keyDocuments: ['Transport Freight Receipts / Railway RR Receipt', 'Storage Rent Invoice with geo-tag', 'Crop Origin Certificate from District Agriculture Officer'],
+    applyUrl: 'https://mofpi.gov.in/schemes/operation-greens',
+    status: 'Open',
+    grantAmount: '50% Freight & Storage Subsidy',
+    tags: ['Transport Subsidy', 'Perishables', 'MoFPI']
+  },
+  {
+    id: 'smam-chc',
+    name: 'SMAM Custom Hiring Centers (Farm Machinery Bank)',
+    category: 'Farm Machinery',
+    ministry: 'Sub-Mission on Agricultural Mechanization (SMAM)',
+    benefit: 'Up to 80% subsidy (up to ₹10 Lakhs) for establishing Custom Hiring Centers (CHCs) with High-Tech Farm Equipment and Drones.',
+    eligibility: 'Registered FPOs with at least 50 farmer members in the cluster area.',
+    targetAudience: 'FPOs providing Tractor & Harvester Rentals',
+    keyDocuments: ['FPO Registration Certificate', 'List of proposed farm equipment with manufacturer quotations', 'Resolution passed in General Body Meeting'],
+    applyUrl: 'https://agrimachinery.nic.in/',
+    status: 'Active',
+    grantAmount: 'Up to 80% Machinery Subsidy',
+    tags: ['Tractor Bank', 'Drone Hire', 'Farm Machinery']
+  }
+];
+
+function FpoSchemesView({ user, t, onNavigate }) {
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [appliedSchemes, setAppliedSchemes] = useState({});
+  const [selectedSchemeForApply, setSelectedSchemeForApply] = useState(null);
+  const [showEligibilityCalc, setShowEligibilityCalc] = useState(false);
+  const [calcMembers, setCalcMembers] = useState(287);
+  const [calcEquity, setCalcEquity] = useState(1250000);
+  const [calcResult, setCalcResult] = useState(null);
+
+  const categories = ['All', 'Direct Grants', 'Credit Guarantees', 'Infra & Storage', 'Farm Machinery'];
+
+  const filteredSchemes = FPO_SCHEMES_LIST.filter(scheme => {
+    const matchesCat = selectedCategory === 'All' || scheme.category === selectedCategory;
+    const matchesSearch = scheme.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          scheme.benefit.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          scheme.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesCat && matchesSearch;
+  });
+
+  const handleApplySubmit = (e) => {
+    e.preventDefault();
+    const appRef = `FPO-${selectedSchemeForApply.id.toUpperCase().slice(0, 4)}-${Math.floor(1000 + Math.random() * 9000)}`;
+    setAppliedSchemes(prev => ({
+      ...prev,
+      [selectedSchemeForApply.id]: {
+        appRef,
+        appliedDate: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+        status: 'Submitted to Portal'
+      }
+    }));
+    confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+    setSelectedSchemeForApply(null);
+  };
+
+  const calculateEligibility = (e) => {
+    e.preventDefault();
+    const members = Number(calcMembers) || 0;
+    const equity = Number(calcEquity) || 0;
+
+    let sfacEligible = members >= 300;
+    let sfacMaxGrant = Math.min(equity, 1500000);
+    let nabardGuarantee = members >= 100 ? 'Eligible for up to ₹2 Crore guarantee cover' : 'Requires min 100 members';
+    let aifEligible = '3% Interest Subvention eligible for packhouses & cold storage';
+
+    setCalcResult({
+      sfacEligible,
+      sfacMaxGrant,
+      nabardGuarantee,
+      aifEligible,
+      members,
+      equity
+    });
+  };
+
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-black text-slate-800">{icon} {title}</h2>
-      <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-12 text-center">
-        <div className="text-6xl mb-4">{icon}</div>
-        <p className="text-slate-500 font-semibold">{description}</p>
-        <p className="text-xs text-slate-400 mt-2">Module coming soon in production</p>
+    <div className="space-y-6">
+      {/* Header Banner */}
+      <div className="bg-gradient-to-r from-amber-700 via-orange-600 to-amber-800 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+        <div className="absolute right-0 top-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <span className="inline-flex items-center gap-1.5 bg-amber-950/60 border border-amber-300/30 px-3 py-1 rounded-full text-xs font-bold text-amber-200">
+              <Award className="w-3.5 h-3.5 text-amber-300" /> Central & State Govt Grants for FPOs
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              FPO Subsidies, Equity Grants & Credit Guarantees
+            </h1>
+            <p className="text-amber-100 text-xs sm:text-sm leading-relaxed">
+              Access matching grants from SFAC up to ₹15 Lakhs, collateral-free credit cover from NABARD up to ₹2 Crores, and 50% perishable freight subsidies under Operation Greens.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowEligibilityCalc(true)}
+            className="px-5 py-3 bg-white hover:bg-amber-50 text-amber-900 font-black rounded-2xl shadow-lg transition-all hover:scale-105 flex items-center gap-2 cursor-pointer text-xs sm:text-sm whitespace-nowrap"
+          >
+            <Sparkles className="w-4 h-4 text-amber-600" />
+            Check FPO Eligibility Calculator
+          </button>
+        </div>
       </div>
+
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search schemes by name, grant, or benefit..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                selectedCategory === cat
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Schemes Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {filteredSchemes.map((scheme) => {
+          const appliedInfo = appliedSchemes[scheme.id];
+          return (
+            <div
+              key={scheme.id}
+              className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-lg transition-all p-6 flex flex-col justify-between group hover:border-amber-300"
+            >
+              <div className="space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200/60 px-2.5 py-0.5 rounded-full inline-block">
+                      {scheme.category}
+                    </span>
+                    <h3 className="font-black text-slate-800 text-base group-hover:text-amber-700 transition">
+                      {scheme.name}
+                    </h3>
+                    <p className="text-[11px] text-slate-400 font-semibold">{scheme.ministry}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <span className="inline-block px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 font-black text-xs rounded-xl shadow-xs">
+                      {scheme.grantAmount}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-700 leading-relaxed font-medium">
+                  {scheme.benefit}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Eligibility:</span>
+                  </div>
+                  <p className="text-xs text-slate-600 pl-5">{scheme.eligibility}</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                    <FileText className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Required Documents:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pl-5">
+                    {scheme.keyDocuments.map((doc, idx) => (
+                      <span key={idx} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-semibold">
+                        • {doc}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {appliedInfo && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs animate-in fade-in">
+                    <div>
+                      <p className="font-bold text-emerald-900">Application Submitted ✅</p>
+                      <p className="text-[10px] text-emerald-700">Ref: {appliedInfo.appRef} • {appliedInfo.appliedDate}</p>
+                    </div>
+                    <span className="text-[10px] bg-emerald-200 text-emerald-800 font-black px-2 py-0.5 rounded">
+                      In Review
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-5 mt-5 border-t border-slate-100 flex items-center justify-between gap-3">
+                <a
+                  href={scheme.applyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-amber-700 transition"
+                >
+                  Official Portal <ExternalLink className="w-3 h-3" />
+                </a>
+
+                <button
+                  onClick={() => setSelectedSchemeForApply(scheme)}
+                  className="px-4 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold text-xs rounded-xl shadow-sm transition hover:scale-105 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Handshake className="w-3.5 h-3.5" />
+                  {appliedInfo ? 'Re-submit / Update' : 'Apply Online'}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Apply Modal */}
+      {selectedSchemeForApply && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100">
+            <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-amber-700 to-orange-700 text-white flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-white text-base">Apply for Scheme</h3>
+                <p className="text-xs text-amber-200">{selectedSchemeForApply.name}</p>
+              </div>
+              <button
+                onClick={() => setSelectedSchemeForApply(null)}
+                className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleApplySubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">FPO Name</label>
+                <input
+                  type="text"
+                  readOnly
+                  value={user?.fpoName || user?.name || 'Sahyadri Farmers Producer Co. Ltd'}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">CIN / Reg No.</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value="U01409MH2021PTC361234"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Member Farmers</label>
+                  <input
+                    type="number"
+                    defaultValue="287"
+                    required
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Estimated Grant / Loan Required (₹)</label>
+                <input
+                  type="text"
+                  defaultValue="₹15,00,000"
+                  required
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-emerald-700 focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Brief Proposal / Objective</label>
+                <textarea
+                  rows="2"
+                  placeholder="e.g. Establishment of 500 MT onion storage shed and grading facility for export pool"
+                  defaultValue="Aggregating 1,200 MT Red Onion from 287 member farmers for institutional bulk contracts."
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 focus:ring-2 focus:ring-amber-500 outline-none resize-none"
+                />
+              </div>
+
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs text-amber-800">
+                <CheckCircle2 className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span>All documents from FPO Document Hub will be automatically verified & attached.</span>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSchemeForApply(null)}
+                  className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-xl transition shadow-md cursor-pointer flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" /> Submit Application
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Eligibility Calculator Modal */}
+      {showEligibilityCalc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100">
+            <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-amber-700 to-orange-700 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-amber-200" />
+                </div>
+                <div>
+                  <h3 className="font-black text-white text-base">FPO Scheme Eligibility Calculator</h3>
+                  <p className="text-xs text-amber-200">Real-time SFAC, NABARD & AIF Subsidy Estimator</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowEligibilityCalc(false); setCalcResult(null); }}
+                className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={calculateEligibility} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Number of Active Shareholder Farmers</label>
+                <input
+                  type="number"
+                  min="10"
+                  value={calcMembers}
+                  onChange={(e) => setCalcMembers(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Min 300 required for SFAC Equity Grant in plains; 100 in Hilly/NE states.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Total Paid-up Equity Capital Collected (₹)</label>
+                <input
+                  type="number"
+                  min="10000"
+                  step="50000"
+                  value={calcEquity}
+                  onChange={(e) => setCalcEquity(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">SFAC matches 1:1 up to ₹15 Lakhs.</p>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-xl transition shadow-md cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Sparkles className="w-4 h-4" /> Calculate Eligible Benefits
+              </button>
+
+              {calcResult && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-3 animate-in zoom-in-95">
+                  <h4 className="font-black text-amber-950 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Eligibility Assessment Results
+                  </h4>
+
+                  <div className="space-y-2 text-xs">
+                    <div className="p-2.5 bg-white rounded-xl border border-amber-200/80 flex items-center justify-between">
+                      <span className="font-bold text-slate-700">SFAC Matching Equity Grant:</span>
+                      <span className="font-black text-emerald-700">₹{calcResult.sfacMaxGrant.toLocaleString('en-IN')}</span>
+                    </div>
+
+                    <div className="p-2.5 bg-white rounded-xl border border-amber-200/80 flex items-center justify-between">
+                      <span className="font-bold text-slate-700">NABARD Credit Guarantee:</span>
+                      <span className="font-black text-blue-700">Cover up to ₹2.00 Cr</span>
+                    </div>
+
+                    <div className="p-2.5 bg-white rounded-xl border border-amber-200/80 flex items-center justify-between">
+                      <span className="font-bold text-slate-700">AIF Infrastructure Interest:</span>
+                      <span className="font-black text-purple-700">3% Annual Subsidy</span>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-amber-900 leading-snug">
+                    {calcResult.members >= 300
+                      ? '🎉 Outstanding! Your FPO fulfills all requirements for the maximum ₹15L SFAC grant.'
+                      : `💡 Tip: Add ${300 - calcResult.members} more farmers to cross the 300 shareholder threshold for automatic SFAC grant approval.`}
+                  </p>
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── FPO Documents & Compliance Hub ─────────────────────────────────────────
+const INITIAL_FPO_DOCS = [
+  {
+    id: 'DOC-001',
+    title: 'Certificate of Incorporation (MCA)',
+    category: 'Incorporation & Legal',
+    docNo: 'CIN: U01409MH2021PTC361234',
+    authority: 'Ministry of Corporate Affairs, Registrar of Companies Pune',
+    issueDate: '12 May 2021',
+    expiryDate: 'Permanent (Valid)',
+    status: 'Verified',
+    fileSize: '2.4 MB PDF',
+    verifiedBy: 'MCA V3 Portal',
+    badgeColor: 'bg-emerald-100 text-emerald-800'
+  },
+  {
+    id: 'DOC-002',
+    title: 'APMC Unified Institutional Trade License',
+    category: 'Trade & Food Safety Licenses',
+    docNo: 'LIC-MH-APMC-NSK-4421',
+    authority: 'Maharashtra State APMC Directorate & Lasalgaon APMC',
+    issueDate: '01 Apr 2024',
+    expiryDate: '31 Mar 2027',
+    status: 'Verified',
+    fileSize: '1.2 MB PDF',
+    verifiedBy: 'State Agri Marketing Board',
+    badgeColor: 'bg-emerald-100 text-emerald-800'
+  },
+  {
+    id: 'DOC-003',
+    title: 'FSSAI Central Food Business Operator License',
+    category: 'Trade & Food Safety Licenses',
+    docNo: 'Reg No: 11521034000892',
+    authority: 'Food Safety & Standards Authority of India (FSSAI Western Region)',
+    issueDate: '15 Nov 2022',
+    expiryDate: '14 Nov 2027',
+    status: 'Verified',
+    fileSize: '1.8 MB PDF',
+    verifiedBy: 'FoSCoS Portal',
+    badgeColor: 'bg-emerald-100 text-emerald-800'
+  },
+  {
+    id: 'DOC-004',
+    title: 'Goods & Services Tax (GST) Registration',
+    category: 'Incorporation & Legal',
+    docNo: 'GSTIN: 27AAECS4491N1ZW',
+    authority: 'Central Board of Indirect Taxes & Customs (CBIC)',
+    issueDate: '20 Jun 2021',
+    expiryDate: 'Active (Perpetual)',
+    status: 'Verified',
+    fileSize: '820 KB PDF',
+    verifiedBy: 'GSTN Portal',
+    badgeColor: 'bg-emerald-100 text-emerald-800'
+  },
+  {
+    id: 'DOC-005',
+    title: 'Shareholder Members Registry (Form MGT-1)',
+    category: 'Member Farmer Registries',
+    docNo: 'REG-2026-FPO-MEM-287',
+    authority: 'Sahyadri Farmers Producer Co. Board of Directors',
+    issueDate: '15 Aug 2026',
+    expiryDate: 'Updated Quarterly',
+    status: 'Verified',
+    fileSize: '3.6 MB PDF',
+    verifiedBy: 'FPO Internal Audit',
+    badgeColor: 'bg-emerald-100 text-emerald-800'
+  },
+  {
+    id: 'DOC-006',
+    title: 'AGMARK Quality Grading & Packing License',
+    category: 'Quality & Lab Assay Reports',
+    docNo: 'AGMARK-NSK-2025-081',
+    authority: 'Directorate of Marketing & Inspection (DMI), Nagpur',
+    issueDate: '16 Oct 2023',
+    expiryDate: '15 Oct 2026 (Renewal in 21 days)',
+    status: 'Expiring Soon',
+    fileSize: '1.5 MB PDF',
+    verifiedBy: 'Govt AGMARK Lab',
+    badgeColor: 'bg-amber-100 text-amber-800'
+  },
+  {
+    id: 'DOC-007',
+    title: 'NABL Certified Soil & Pesticide Residue Assay',
+    category: 'Quality & Lab Assay Reports',
+    docNo: 'NABL-MH-AGRI-8821',
+    authority: 'National Accreditation Board for Testing Laboratories',
+    issueDate: '10 Aug 2026',
+    expiryDate: '09 Feb 2027',
+    status: 'Verified',
+    fileSize: '4.1 MB PDF',
+    verifiedBy: 'NABL Lab Network',
+    badgeColor: 'bg-emerald-100 text-emerald-800'
+  }
+];
+
+function FpoDocumentsView({ user, t }) {
+  const [documents, setDocuments] = useState(() => {
+    try {
+      const saved = localStorage.getItem('anaaj_fpo_documents');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return INITIAL_FPO_DOCS;
+  });
+
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [downloadToast, setDownloadToast] = useState(null);
+
+  const [newTitle, setNewTitle] = useState('');
+  const [newCategory, setNewCategory] = useState('Trade & Food Safety Licenses');
+  const [newDocNo, setNewDocNo] = useState('');
+  const [newAuthority, setNewAuthority] = useState('');
+  const [newExpiry, setNewExpiry] = useState('');
+  const [newFileName, setNewFileName] = useState('');
+
+  const categories = [
+    'All',
+    'Incorporation & Legal',
+    'Trade & Food Safety Licenses',
+    'Member Farmer Registries',
+    'Quality & Lab Assay Reports'
+  ];
+
+  const filteredDocs = documents.filter(doc => {
+    const matchesCat = selectedCategory === 'All' || doc.category === selectedCategory;
+    const matchesSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          doc.docNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          doc.authority.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCat && matchesSearch;
+  });
+
+  const verifiedCount = documents.filter(d => d.status === 'Verified').length;
+  const expiringCount = documents.filter(d => d.status === 'Expiring Soon').length;
+
+  const handleUploadSubmit = (e) => {
+    e.preventDefault();
+    const newDoc = {
+      id: `DOC-00${documents.length + 1}`,
+      title: newTitle || 'FPO Legal Document',
+      category: newCategory,
+      docNo: newDocNo || `REG-${Date.now().toString().slice(-6)}`,
+      authority: newAuthority || 'Govt of Maharashtra',
+      issueDate: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+      expiryDate: newExpiry || 'Valid (3 Years)',
+      status: 'Verified',
+      fileSize: newFileName ? `${(Math.random() * 2 + 1).toFixed(1)} MB PDF` : '1.8 MB PDF',
+      verifiedBy: 'DigiLocker / MCA Verified',
+      badgeColor: 'bg-emerald-100 text-emerald-800'
+    };
+
+    const updated = [newDoc, ...documents];
+    setDocuments(updated);
+    try {
+      localStorage.setItem('anaaj_fpo_documents', JSON.stringify(updated));
+    } catch (e) {}
+
+    confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+    setShowUploadModal(false);
+    setNewTitle('');
+    setNewDocNo('');
+    setNewAuthority('');
+    setNewExpiry('');
+    setNewFileName('');
+  };
+
+  const triggerDownload = (doc) => {
+    setDownloadToast(`Downloading ${doc.title}...`);
+    setTimeout(() => {
+      setDownloadToast(`✓ ${doc.title} downloaded successfully!`);
+      setTimeout(() => setDownloadToast(null), 2500);
+    }, 1200);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Toast */}
+      {downloadToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-bold animate-in slide-in-from-bottom">
+          <Download className="w-4 h-4 text-emerald-400" />
+          <span>{downloadToast}</span>
+        </div>
+      )}
+
+      {/* Compliance Health Overview Banner */}
+      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-2xl flex-shrink-0">
+            📁
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-black text-slate-800">FPO Documents & Compliance Hub</h2>
+              <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                Grade A+ Compliance (98%)
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Centralized repository for corporate registry, APMC mandi trading licenses, FSSAI certifications & quality assay records.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="flex-1 md:flex-initial px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-xl shadow-md transition-all hover:scale-105 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Upload className="w-4 h-4" /> Upload Document
+          </button>
+        </div>
+      </div>
+
+      {/* Metric Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
+          <div className="flex items-center justify-between text-slate-400 mb-1">
+            <span className="text-xs font-semibold">Total Documents</span>
+            <FileText className="w-4 h-4 text-slate-500" />
+          </div>
+          <p className="text-2xl font-black text-slate-800">{documents.length}</p>
+          <span className="text-[10px] text-slate-400">All registered records</span>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
+          <div className="flex items-center justify-between text-emerald-600 mb-1">
+            <span className="text-xs font-semibold">Verified & Active</span>
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          </div>
+          <p className="text-2xl font-black text-emerald-700">{verifiedCount}</p>
+          <span className="text-[10px] text-emerald-600 font-bold">100% legally binding</span>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
+          <div className="flex items-center justify-between text-amber-600 mb-1">
+            <span className="text-xs font-semibold">Action Required</span>
+            <Clock className="w-4 h-4 text-amber-500" />
+          </div>
+          <p className="text-2xl font-black text-amber-600">{expiringCount}</p>
+          <span className="text-[10px] text-amber-700 font-bold">AGMARK license renewal</span>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
+          <div className="flex items-center justify-between text-blue-600 mb-1">
+            <span className="text-xs font-semibold">DigiLocker Sync</span>
+            <Sparkles className="w-4 h-4 text-blue-500" />
+          </div>
+          <p className="text-2xl font-black text-blue-700">Connected</p>
+          <span className="text-[10px] text-blue-600 font-bold">Auto-fetch enabled</span>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search by doc name, number, or authority..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                selectedCategory === cat
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Documents List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredDocs.map((doc) => (
+          <div
+            key={doc.id}
+            className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all p-5 flex flex-col justify-between group hover:border-amber-300"
+          >
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center font-bold text-lg flex-shrink-0">
+                  📄
+                </div>
+                <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${
+                  doc.status === 'Verified' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {doc.status === 'Verified' ? '✓ Verified' : '⚠️ ' + doc.status}
+                </span>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-slate-800 text-sm group-hover:text-amber-700 transition">
+                  {doc.title}
+                </h3>
+                <p className="text-[11px] font-mono text-amber-900 bg-amber-50 px-2 py-0.5 rounded inline-block mt-1 font-bold">
+                  {doc.docNo}
+                </p>
+              </div>
+
+              <div className="space-y-1 text-[11px] text-slate-500">
+                <p className="truncate"><span className="font-semibold text-slate-700">Authority:</span> {doc.authority}</p>
+                <p><span className="font-semibold text-slate-700">Valid:</span> {doc.expiryDate}</p>
+                <p><span className="font-semibold text-slate-700">Size:</span> {doc.fileSize} • {doc.verifiedBy}</p>
+              </div>
+            </div>
+
+            <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+              <button
+                onClick={() => setPreviewDoc(doc)}
+                className="flex-1 py-1.5 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1 cursor-pointer border border-slate-200"
+              >
+                <Eye className="w-3.5 h-3.5 text-slate-500" /> View
+              </button>
+              <button
+                onClick={() => triggerDownload(doc)}
+                className="flex-1 py-1.5 px-3 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1 cursor-pointer border border-amber-200"
+              >
+                <Download className="w-3.5 h-3.5 text-amber-600" /> Download
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Upload Document Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100">
+            <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-amber-700 to-orange-700 text-white flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-white text-base">Upload FPO Document</h3>
+                <p className="text-xs text-amber-200">Legal, licensing, & lab assay records</p>
+              </div>
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUploadSubmit} className="p-6 space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Document Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. FSSAI Central License Renewal"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Category *</label>
+                <select
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                >
+                  <option value="Incorporation & Legal">Incorporation & Legal</option>
+                  <option value="Trade & Food Safety Licenses">Trade & Food Safety Licenses</option>
+                  <option value="Member Farmer Registries">Member Farmer Registries</option>
+                  <option value="Quality & Lab Assay Reports">Quality & Lab Assay Reports</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Document / Reg No. *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. MH-REG-8812"
+                    value={newDocNo}
+                    onChange={(e) => setNewDocNo(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Expiry Date</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 31 Dec 2027"
+                    value={newExpiry}
+                    onChange={(e) => setNewExpiry(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Issuing Authority *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Directorate of Marketing & Inspection, GoI"
+                  value={newAuthority}
+                  onChange={(e) => setNewAuthority(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+
+              {/* File Dropzone */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Attach File (PDF, PNG, JPG)</label>
+                <div
+                  className="border-2 border-dashed border-slate-200 hover:border-amber-500 rounded-2xl p-4 text-center cursor-pointer bg-slate-50/50 transition"
+                  onClick={() => setNewFileName('FPO_Compliance_Cert_2026.pdf')}
+                >
+                  <Upload className="w-6 h-6 text-amber-600 mx-auto mb-1" />
+                  <p className="text-xs font-bold text-slate-700">
+                    {newFileName ? `Attached: ${newFileName} ✓` : 'Click to simulate document upload'}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">DigiLocker OCR ready</p>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowUploadModal(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-xl transition shadow-md cursor-pointer flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" /> Save & Verify
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Document Preview Modal */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-100">
+            <div className="p-4 border-b border-slate-100 bg-gradient-to-r from-amber-700 to-orange-700 text-white flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-white text-sm">{previewDoc.title}</h3>
+                <p className="text-[11px] text-amber-200">{previewDoc.docNo}</p>
+              </div>
+              <button
+                onClick={() => setPreviewDoc(null)}
+                className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Simulated Official Document Canvas */}
+            <div className="p-6 bg-slate-50">
+              <div className="bg-white border-2 border-slate-300 rounded-2xl p-6 shadow-inner relative overflow-hidden space-y-4">
+                <div className="absolute right-4 bottom-4 text-7xl opacity-5 pointer-events-none font-serif font-black">
+                  अ
+                </div>
+
+                <div className="text-center border-b border-slate-200 pb-3">
+                  <p className="text-[10px] font-black uppercase text-amber-800 tracking-wider">Government of India / State Directorate</p>
+                  <h4 className="text-base font-black text-slate-800 mt-0.5">{previewDoc.authority}</h4>
+                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">Verification Ref: {previewDoc.docNo}</p>
+                </div>
+
+                <div className="space-y-2 text-xs text-slate-700">
+                  <div className="flex justify-between py-1 border-b border-slate-100">
+                    <span className="font-bold text-slate-500">Issued To:</span>
+                    <span className="font-black text-slate-900">{user?.fpoName || user?.name || 'Sahyadri Farmers Producer Co. Ltd'}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-100">
+                    <span className="font-bold text-slate-500">Document Type:</span>
+                    <span className="font-semibold text-slate-900">{previewDoc.category}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-100">
+                    <span className="font-bold text-slate-500">Issue Date:</span>
+                    <span className="font-semibold text-slate-900">{previewDoc.issueDate}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-100">
+                    <span className="font-bold text-slate-500">Validity:</span>
+                    <span className="font-black text-emerald-700">{previewDoc.expiryDate}</span>
+                  </div>
+                </div>
+
+                <div className="pt-3 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-black">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <span>Digitally Signed & Validated</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 block font-mono">SHA-256 Verified</span>
+                    <span className="text-[10px] font-bold text-slate-600">{previewDoc.verifiedBy}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-white border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs text-slate-400">{previewDoc.fileSize}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => triggerDownload(previewDoc)}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download Certificate
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1387,6 +2381,9 @@ export default function FpoDashboardNew({ user, onLogout, lang: appLang = 'en', 
     { id: 'orders', label: t?.dashOrders || 'Consignment Orders', icon: Package },
     { id: 'payments', label: t?.dashPayments || 'Member Payouts', icon: CreditCard },
     { id: 'reviews', label: t?.dashReviews || 'Rate Bulk Buyers', icon: Star },
+    { id: 'schemes', label: 'Govt Schemes & Grants', icon: Award },
+    { id: 'docs', label: 'Documents & Compliance', icon: FileText },
+    { id: 'chat', label: 'Buyer & Network Chat', icon: MessageSquare },
     { id: 'logistics', label: t?.dashLogistics || 'Logistics', icon: Truck },
     { id: 'weather', label: t?.dashWeather || 'Weather', icon: CloudSun },
     { id: 'help', label: t?.dashHelp || 'Help & Support', icon: HelpCircle },
@@ -1396,8 +2393,11 @@ export default function FpoDashboardNew({ user, onLogout, lang: appLang = 'en', 
     switch (activeSection) {
       case 'dashboard': return <DashboardOverview farmers={farmers} onNavigate={setActiveSection} />;
       case 'farmers': return <ManageFarmersView onFarmersChange={setFarmers} user={user} />;
-      case 'aggregation': return <CropAggregationView user={user} t={t} />;
+      case 'aggregation':
+      case 'create-lot':
+        return <CropAggregationView user={user} t={t} />;
       case 'market': return <FpoMarketPrices t={t} lang={lang} />;
+      case 'storage':
       case 'ai-storage': 
         return (
           <div className="space-y-5 max-w-7xl mx-auto">
@@ -1405,14 +2405,19 @@ export default function FpoDashboardNew({ user, onLogout, lang: appLang = 'en', 
           </div>
         );
       case 'best-market': return <NetProfitCalculator t={t} />;
-      case 'selling': return <BulkSellingView user={user} t={t} />;
+      case 'selling':
+      case 'matching':
+        return <BulkSellingView user={user} t={t} />;
       case 'orders': return <FpoOrdersView />;
-      case 'payments': return <MemberPaymentsView user={user} />;
+      case 'payments':
+      case 'revenue':
+        return <MemberPaymentsView user={user} />;
       case 'reviews': return <FpoBuyerReviews user={user} t={t} onNavigate={setActiveSection} />;
+      case 'schemes': return <FpoSchemesView user={user} t={t} onNavigate={setActiveSection} />;
+      case 'docs': return <FpoDocumentsView user={user} t={t} />;
+      case 'chat': return <FpoChat t={t} />;
       case 'logistics': return <LogisticsStorage t={t} defaultTab="logistics" user={user} />;
       case 'weather': return <WeatherWidget t={t} />;
-      case 'chat': return <FpoChat t={t} />;
-      case 'schemes': return <SimplePlaceholder title="Government Schemes for FPOs" icon="📋" description="PM-KISAN, FPO promotion scheme, SFAC funding, NABARD credit linkages and more" />;
       case 'help': return <FarmerGrievance t={t} />;
       default: return <DashboardOverview farmers={farmers} onNavigate={setActiveSection} />;
     }
@@ -1542,6 +2547,19 @@ export default function FpoDashboardNew({ user, onLogout, lang: appLang = 'en', 
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 bg-slate-50">
+          {/* Breadcrumb Navigation */}
+          <div className="flex items-center gap-2 text-xs text-slate-400 mb-5">
+            <span className="hover:text-amber-600 cursor-pointer" onClick={() => setActiveSection('dashboard')}>Dashboard</span>
+            {activeSection !== 'dashboard' && (
+              <>
+                <ChevronRight className="w-3 h-3" />
+                <span className="text-slate-600 font-semibold capitalize">
+                  {(navItems.find(n => n.id === activeSection) || NAV_ITEMS.find(n => n.id === activeSection))?.label || activeSection}
+                </span>
+              </>
+            )}
+          </div>
+
           <div className="animate-fade-in">
              {renderSection()}
           </div>
