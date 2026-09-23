@@ -1,6 +1,6 @@
 # Anaaj (AgriNova)
 
-A Full Stack Web Application that provides an AI & Data Engine for agriculture, integrating a Vite + React frontend with a FastAPI microservice backend.
+A Full Stack Web Application that provides an AI & Data Engine for agriculture, integrating a Vite + React frontend with a FastAPI microservice backend. It includes a marketplace for farmers, warehouse booking (WDRA Storage & e-NWR), and FPO management.
 
 ## Tech Stack
 
@@ -72,12 +72,22 @@ pip install -r requirements.txt
 python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
+## Database Schema (Supabase)
+To set up the database, execute `supabase_schema.sql` inside the Supabase Dashboard SQL Editor. Key features include:
+
+- **warehouse_bookings**: WDRA Storage & e-NWR Pledge Loans
+- **crop_listings**: Farmer Spot Offerings
+- **market_bids**: Buyer Competitive Offers
+- **farmer_grievances**: Helpdesk Tickets
+- **price_alerts**: Target Threshold Notifications
+- **fpo_memberships & fpo_join_requests**: FPO Groupings
+
 ## Features
 
-- Real-world AI & Data Engine
-- Dashboard with Data Visualization (Recharts)
-- Map Integration (Leaflet)
-- Supabase Backend Integration for Auth/Data
+- **Real-world AI & Data Engine**: Seamless integration between React frontend and FastAPI.
+- **Dashboard with Data Visualization**: Real-time charts utilizing Recharts.
+- **Map Integration**: Dynamic mapping and routing via Leaflet.
+- **Comprehensive Database**: Fully integrated Supabase Backend for Auth and Data synchronization.
 
 ## License
 
