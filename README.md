@@ -1,4 +1,4 @@
-# Anaaj (AgriNova)
+# Anaaj 
 
 A Full Stack Web Application that provides an AI & Data Engine for agriculture, integrating a Vite + React frontend with a FastAPI microservice backend. It includes a marketplace for farmers, warehouse booking (WDRA Storage & e-NWR), and FPO management.
 
