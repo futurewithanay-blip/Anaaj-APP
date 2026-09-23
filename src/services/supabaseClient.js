@@ -181,26 +181,36 @@ export async function createCropListing(listingData) {
   const payload = {
     listing_code: listingData.listing_code || `LIST-${Date.now().toString().slice(-6)}`,
     farmer_id: listingData.farmer_id || 'farmer-default',
-    farmer_name: listingData.farmer_name,
-    phone: listingData.phone,
+    farmer_name: listingData.farmer_name || 'Registered Farmer',
+    phone: listingData.phone || '+91 98231 44521',
     state: listingData.state || 'Maharashtra',
     district: listingData.district || 'Nashik',
-    crop_name: listingData.crop_name,
-    variety: listingData.variety || 'FAQ Standard',
+    crop_name: listingData.crop_name || 'Wheat',
+    variety: listingData.variety || 'Standard FAQ',
     quality_grade: listingData.quality_grade || 'Grade A',
-    quantity_qtl: Number(listingData.quantity_qtl),
-    base_price_per_qtl: Number(listingData.base_price_per_qtl),
+    quantity_qtl: Number(listingData.quantity_qtl) || 50,
+    base_price_per_qtl: Number(listingData.base_price_per_qtl) || 2400,
     mandi_name: listingData.mandi_name || 'Lasalgaon APMC',
     image_url: listingData.image_url || null,
+    moisture_pct: listingData.moisture_pct != null ? Number(listingData.moisture_pct) : null,
+    harvest_date: listingData.harvest_date || listingData.harvest || null,
+    notes: listingData.notes || null,
     status: 'ACTIVE'
   };
 
   if (isSupabaseConfigured() && supabase) {
     try {
       const { data, error } = await supabase.from('crop_listings').insert([payload]).select().single();
-      if (!error && data) return { success: true, data, source: 'supabase' };
+      if (!error && data) {
+        const local = getLocal(STORAGE_KEYS.LISTINGS);
+        setLocal(STORAGE_KEYS.LISTINGS, [data, ...local.filter(l => l.id !== data.id)]);
+        return { success: true, data, source: 'supabase' };
+      }
+      if (error) {
+        console.error('[Supabase] Create listing error:', error.message, error.details);
+      }
     } catch (err) {
-      console.warn('[Supabase] Create listing error:', err);
+      console.error('[Supabase] Create listing exception:', err);
     }
   }
 

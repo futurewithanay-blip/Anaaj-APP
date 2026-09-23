@@ -48,10 +48,6 @@ CREATE TABLE IF NOT EXISTS crop_listings (
     quantity_qtl NUMERIC NOT NULL CHECK (quantity_qtl > 0),
     base_price_per_qtl NUMERIC NOT NULL CHECK (base_price_per_qtl > 0),
     mandi_name TEXT NOT NULL,
-    image_url TEXT,
-    moisture_pct NUMERIC,
-    harvest_date TEXT,
-    notes TEXT,
     status TEXT NOT NULL DEFAULT 'ACTIVE', -- 'ACTIVE', 'SOLD', 'EXPIRED'
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

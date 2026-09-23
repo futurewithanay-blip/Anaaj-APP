@@ -100,10 +100,30 @@ function CreateCropLotModal({ onClose, onAddCrop, farmerProfile }) {
     const file = files[0];
     setUploadedFiles(files.map(f => f.name));
 
-    // Convert file to Base64 Data URL for live preview and database storage
+    // Convert file to Base64 Data URL with canvas resize for lightning-fast database storage
     const reader = new FileReader();
     reader.onload = (event) => {
-      setCropImageUrl(event.target.result);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 800;
+        let width = img.width;
+        let height = img.height;
+        if (width > height && width > maxDim) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else if (height > maxDim) {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressedUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setCropImageUrl(compressedUrl);
+      };
+      img.src = event.target.result;
     };
     reader.readAsDataURL(file);
 
@@ -135,6 +155,7 @@ function CreateCropLotModal({ onClose, onAddCrop, farmerProfile }) {
     let savedListing = null;
     try {
       const res = await createCropListing({
+        farmer_id: farmerProfile?.kisanId || 'farmer-user',
         farmer_name: farmerProfile?.name || 'Dnyaneshwar Patil',
         phone: farmerProfile?.phone || '+91 98231 44521',
         state: farmerProfile?.state || 'Maharashtra',
@@ -145,11 +166,13 @@ function CreateCropLotModal({ onClose, onAddCrop, farmerProfile }) {
         quantity_qtl: qty,
         base_price_per_qtl: price,
         mandi_name: 'Lasalgaon APMC',
-        image_url: cropImageUrl
+        image_url: cropImageUrl,
+        harvest_date: form.harvest || new Date().toISOString().split('T')[0],
+        notes: form.notes || ''
       });
       if (res?.data) savedListing = res.data;
     } catch (err) {
-      console.warn('Error saving crop listing to Supabase:', err);
+      console.error('Error saving crop listing to Supabase:', err);
     }
 
     const newLot = {
