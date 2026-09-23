@@ -19,7 +19,7 @@ import porterService, { PORTER_VEHICLE_TYPES } from '../../services/porterServic
 import UserProfileModal from '../common/UserProfileModal';
 import FarmerGrievance from '../panels/FarmerPanel/FarmerGrievance';
 import VoiceInputMic from '../common/VoiceInputMic';
-import { fetchCropListings, placeBuyerBid } from '../../services/supabaseClient';
+import { fetchCropListings, placeBuyerBid, fetchMarketBids, updateBidStatus, deleteMarketBid, subscribeToMarketplace } from '../../services/supabaseClient';
 
 // ─── Color Palette & Helpers ────────────────────────────────────────────────
 const STATUS_MAP = {
@@ -236,69 +236,95 @@ function DashboardOverview({ onNavigate }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 2. FIND FARMER LOTS
 // ═══════════════════════════════════════════════════════════════════════════════
-function FindCropsView() {
+function FindCropsView({ user }) {
   const [lots, setLots] = useState(INITIAL_FARMER_LOTS);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCrop, setSelectedCrop] = useState('All');
   const [sortBy, setSortBy] = useState('freshness');
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [maxDistance, setMaxDistance] = useState(100);
-  const [maxPrice, setMaxPrice] = useState(10000);
+  const [maxDistance, setMaxDistance] = useState(250);
+  const [maxPrice, setMaxPrice] = useState(200000);
   const [selectedGrade, setSelectedGrade] = useState('Any');
   const [selectedLotForOffer, setSelectedLotForOffer] = useState(null);
   const [offerPrice, setOfferPrice] = useState(2650);
   const [offerSubmitted, setOfferSubmitted] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const cropImages = {
+    Onion: 'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=600&q=80',
+    Wheat: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=600&q=80',
+    Soybean: 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?w=600&q=80',
+    Maize: 'https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=600&q=80',
+    Corn: 'https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=600&q=80',
+    Tomato: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&q=80',
+    Cotton: 'https://images.unsplash.com/photo-1606041008023-472dfb5e530f?w=600&q=80',
+    Rice: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=600&q=80',
+    Mustard: 'https://images.unsplash.com/photo-1508747703725-719777637510?w=600&q=80',
+    Potato: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=600&q=80',
+    Gram: 'https://images.unsplash.com/photo-1515543237350-b3eea1ec8082?w=600&q=80'
+  };
+
+  const loadSupabaseLots = async () => {
+    try {
+      setIsRefreshing(true);
+      const liveListings = await fetchCropListings('ACTIVE');
+      if (liveListings && liveListings.length > 0) {
+        const mapped = liveListings.map(l => ({
+          id: l.listing_code || `LOT-${l.id.slice(0, 8).toUpperCase()}`,
+          supabaseId: l.id,
+          crop: `${l.crop_name}${l.variety ? ` (${l.variety})` : ''}`,
+          cropType: l.crop_name,
+          farmerName: l.farmer_name || 'Verified Farmer',
+          farmerType: 'Smallholder Farmer (e-NAM Linked)',
+          farmerRating: 4.8,
+          reviewCount: 19,
+          location: `${l.district || 'Nashik'}, ${l.state || 'MH'}`,
+          distanceKm: 14,
+          distanceFromMandi: l.mandi_name || 'Lasalgaon APMC (14 km)',
+          quantityQtl: Number(l.quantity_qtl),
+          expectedPrice: Number(l.base_price_per_qtl),
+          grade: l.quality_grade || 'Grade A',
+          moisturePercent: l.moisture_pct ? `${l.moisture_pct}%` : '11.5%',
+          harvestDate: l.harvest_date || new Date(l.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+          verified: true,
+          image: l.image_url || cropImages[l.crop_name] || cropImages.Wheat,
+          image_url: l.image_url || null,
+          hasRealImage: Boolean(l.image_url),
+          wishlist: false,
+          isLiveSupabase: true
+        }));
+
+        setLots(prev => {
+          const liveCodes = new Set(mapped.map(m => m.id));
+          return [...mapped, ...prev.filter(p => !liveCodes.has(p.id) && !p.isLiveSupabase)];
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to load Supabase listings for buyer:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
-    async function loadSupabaseLots() {
-      try {
-        const liveListings = await fetchCropListings('ACTIVE');
-        if (isMounted && liveListings && liveListings.length > 0) {
-          const cropImages = {
-            Onion: 'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=600&q=80',
-            Wheat: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=600&q=80',
-            Soybean: 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?w=600&q=80',
-            Tomato: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&q=80',
-            Cotton: 'https://images.unsplash.com/photo-1606041008023-472dfb5e530f?w=600&q=80'
-          };
-          const mapped = liveListings.map(l => ({
-            id: l.listing_code || `LOT-${l.id.slice(0, 8).toUpperCase()}`,
-            supabaseId: l.id,
-            crop: `${l.crop_name}${l.variety ? ` (${l.variety})` : ''}`,
-            cropType: l.crop_name,
-            farmerName: l.farmer_name || 'Verified Farmer',
-            farmerType: 'Smallholder Farmer (e-NAM Linked)',
-            farmerRating: 4.8,
-            reviewCount: 19,
-            location: `${l.district || 'Nashik'}, ${l.state || 'MH'}`,
-            distanceKm: 14,
-            distanceFromMandi: l.mandi_name || 'Lasalgaon APMC (14 km)',
-            quantityQtl: Number(l.quantity_qtl),
-            expectedPrice: Number(l.base_price_per_qtl),
-            grade: l.quality_grade || 'Grade A',
-            moisturePercent: '11.5%',
-            harvestDate: new Date(l.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
-            verified: true,
-            image: l.image_url || cropImages[l.crop_name] || cropImages.Wheat,
-            image_url: l.image_url || null,
-            hasRealImage: Boolean(l.image_url),
-            wishlist: false,
-            isLiveSupabase: true
-          }));
-
-          setLots(prev => {
-            const liveCodes = new Set(mapped.map(m => m.id));
-            return [...mapped, ...prev.filter(p => !liveCodes.has(p.id))];
-          });
-        }
-      } catch (err) {
-        console.warn('Failed to load Supabase listings for buyer:', err);
-      }
-    }
     loadSupabaseLots();
-    return () => { isMounted = false; };
+
+    // Subscribe to realtime updates on crop_listings & bids
+    const unsub = subscribeToMarketplace((payload) => {
+      if (isMounted) loadSupabaseLots();
+    });
+
+    const interval = setInterval(() => {
+      if (isMounted) loadSupabaseLots();
+    }, 10000);
+
+    return () => {
+      isMounted = false;
+      unsub();
+      clearInterval(interval);
+    };
   }, []);
 
   const toggleWishlist = (id) => {
@@ -308,10 +334,10 @@ function FindCropsView() {
   const filteredLots = lots
     .filter(l => {
       const matchSearch = l.crop.toLowerCase().includes(searchTerm.toLowerCase()) || l.location.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchCrop   = selectedCrop === 'All' || l.crop.toLowerCase().includes(selectedCrop.toLowerCase());
+      const matchCrop   = selectedCrop === 'All' || l.crop.toLowerCase().includes(selectedCrop.toLowerCase()) || (l.cropType && l.cropType.toLowerCase().includes(selectedCrop.toLowerCase()));
       const matchVerify = !verifiedOnly || l.verified;
-      const matchDist   = l.distanceKm <= maxDistance;
-      const matchPrice  = l.expectedPrice <= maxPrice;
+      const matchDist   = maxDistance >= 250 || l.distanceKm <= maxDistance;
+      const matchPrice  = maxPrice >= 200000 || l.expectedPrice <= maxPrice;
       const matchGrade  = selectedGrade === 'Any' || l.grade.includes(selectedGrade);
       return matchSearch && matchCrop && matchVerify && matchDist && matchPrice && matchGrade;
     })
@@ -323,30 +349,46 @@ function FindCropsView() {
       return 0; // freshness = default order
     });
 
+  // Extract dynamic list of crop names from all available lots
+  const dynamicCropList = [
+    'All',
+    ...Array.from(new Set(lots.map(l => l.cropType || (l.crop ? l.crop.split(' ')[0] : '')).filter(Boolean)))
+  ];
+
   const handleOfferSubmit = async (e) => {
     e.preventDefault();
     setOfferSubmitted(true);
 
     let bidResult = null;
     try {
+      const buyerPhone = user?.phone || '+91 98112 33445';
+      const buyerName = user?.name || 'Procurement Desk';
+      const buyerCompany = user?.details?.companyName || user?.company || 'AgriNova Direct Procurement';
+
       bidResult = await placeBuyerBid({
         listing_id: selectedLotForOffer?.supabaseId || null,
-        buyer_id: 'buyer-corporate-1',
-        buyer_name: 'Procurement Desk',
-        buyer_company: 'AgriNova Direct Procurement',
-        buyer_phone: '+91 98112 33445',
+        buyer_id: user?.id || `buyer-${buyerPhone.replace(/\D/g, '').slice(-10)}`,
+        buyer_name: buyerName,
+        buyer_company: buyerCompany,
+        buyer_phone: buyerPhone,
         bid_price_per_qtl: Number(offerPrice),
         quantity_qtl: Number(selectedLotForOffer?.quantityQtl) || 50,
-        status: 'PENDING'
+        status: 'PENDING',
+        notes: `Digital offer placed by ${buyerName} (${buyerCompany})`
       });
+
+      if (bidResult?.success) {
+        confetti({ particleCount: 50, spread: 60 });
+        const bidId = bidResult?.data?.id || `BID-${Date.now().toString().slice(-6)}`;
+        alert(`💼 Digital Offer of ₹${Number(offerPrice).toLocaleString()}/Qtl submitted successfully for lot ${selectedLotForOffer.id}!\n\nBid ID: ${bidId}\nDatabase: Supabase PostgreSQL (market_bids)\nStatus: Pending Farmer Review\nEscrow funds pre-authorized.`);
+      }
     } catch (err) {
       console.warn('Failed to place bid in Supabase:', err);
+      alert('Offer submitted locally. Will sync with Supabase when online.');
+    } finally {
+      setSelectedLotForOffer(null);
+      setOfferSubmitted(false);
     }
-
-    const bidId = bidResult?.data?.id || `BID-${Date.now().toString().slice(-6)}`;
-    alert(`💼 Digital Offer of ₹${Number(offerPrice).toLocaleString()}/Qtl submitted for lot ${selectedLotForOffer.id}!\n\nBid ID: ${bidId}\nDatabase: Supabase PostgreSQL (market_bids)\nStatus: Pending Farmer Review\nEscrow funds pre-authorized.`);
-    setSelectedLotForOffer(null);
-    setOfferSubmitted(false);
   };
 
   return (
@@ -354,10 +396,27 @@ function FindCropsView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-black text-slate-800">🔍 Browse Verified Farmer Lots</h2>
-          <p className="text-xs text-slate-500">Direct procurement from verified smallholders & FPOs</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-black text-slate-800">🔍 Browse Verified Farmer Lots</h2>
+            <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Live Supabase
+            </span>
+          </div>
+          <p className="text-xs text-slate-500">Direct procurement from verified smallholders & FPOs across India</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Refresh Button */}
+          <button
+            onClick={loadSupabaseLots}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 shadow-xs transition"
+            title="Refresh listings from Supabase"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
+
           {/* Verified Toggle */}
           <label className="flex items-center gap-2 cursor-pointer bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">
             <div className={`w-8 h-4 rounded-full transition-colors relative ${verifiedOnly ? 'bg-blue-500' : 'bg-slate-200'}`}>
@@ -383,9 +442,9 @@ function FindCropsView() {
         <VoiceInputMic onResult={setSearchTerm} type="text" />
       </div>
 
-      {/* Crop Filter Pills */}
+      {/* Dynamic Crop Filter Pills */}
       <div className="flex items-center gap-2 flex-wrap">
-        {['All','Onion','Soybean','Wheat','Tomato','Cotton'].map(c => (
+        {dynamicCropList.map(c => (
           <button key={c} onClick={() => setSelectedCrop(c)}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${selectedCrop === c ? 'bg-blue-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
             {c}
@@ -401,19 +460,19 @@ function FindCropsView() {
             <div className="relative flex items-center">
               <select value={selectedGrade} onChange={e => setSelectedGrade(e.target.value)}
                 className="w-full pl-3 pr-9 py-2 rounded-xl border border-slate-200 text-xs appearance-none bg-white">
-                {['Any','Grade A','Grade A+','Grade B','Premium'].map(g => <option key={g}>{g}</option>)}
+                {['Any','Grade A','Grade A+','Grade B','Grade B+','Premium'].map(g => <option key={g}>{g}</option>)}
               </select>
               <VoiceInputMic onResult={setSelectedGrade} type="select" />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Max Distance: {maxDistance} km</label>
-            <input type="range" min={5} max={200} value={maxDistance} onChange={e => setMaxDistance(+e.target.value)}
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">Max Distance: {maxDistance >= 250 ? 'All (No Limit)' : `${maxDistance} km`}</label>
+            <input type="range" min={5} max={250} value={maxDistance} onChange={e => setMaxDistance(+e.target.value)}
               className="w-full accent-blue-600" />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Max Price: ₹{maxPrice.toLocaleString()}/Q</label>
-            <input type="range" min={500} max={10000} step={50} value={maxPrice} onChange={e => setMaxPrice(+e.target.value)}
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">Max Price: {maxPrice >= 200000 ? 'Any Price' : `₹${maxPrice.toLocaleString()}/Q`}</label>
+            <input type="range" min={500} max={200000} step={500} value={maxPrice} onChange={e => setMaxPrice(+e.target.value)}
               className="w-full accent-blue-600" />
           </div>
           <div>
@@ -893,131 +952,306 @@ function AiMatchingView() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 5. MY OFFERS & BIDS
+// 5. MY OFFERS & BIDS (Connected to Supabase PostgreSQL: market_bids)
 // ═══════════════════════════════════════════════════════════════════════════════
-function MyOffersView() {
-  const [offers, setOffers] = useState([
-    { id: 'OFF-101', farmer: 'Dnyaneshwar Patil', crop: 'Onion (Red Nasik)', qty: '50 Q', price: 2650, total: '₹1,32,500', status: 'Pending', date: '03 Sep 2026', thread: [
-      { from: 'buyer', text: 'Offering ₹2,650/Q for your 50 Qtl Onion lot.', time: '03 Sep, 10:00 AM' },
-    ]},
-    { id: 'OFF-102', farmer: 'Nashik FPO Aggregators', crop: 'Wheat (Sharbati)', qty: '200 Q', price: 2150, total: '₹4,30,000', status: 'Accepted', date: '01 Sep 2026', thread: [
-      { from: 'buyer', text: 'Offering ₹2,150/Q for 200 Qtl Wheat.', time: '01 Sep, 9:00 AM' },
-      { from: 'farmer', text: 'Offer accepted! Loading scheduled for 5th Sep.', time: '01 Sep, 2:00 PM' },
-    ]},
-    { id: 'OFF-103', farmer: 'Ramesh Sharma', crop: 'Tomato (Desi)', qty: '20 Q', price: 1800, total: '₹36,000', status: 'Countered', counterPrice: 1900, date: '31 Aug 2026', thread: [
-      { from: 'buyer', text: 'Offering ₹1,800/Q for Tomato lot.', time: '31 Aug, 11:00 AM' },
-      { from: 'farmer', text: 'Minimum I can go is ₹1,900/Q due to quality Grade A. Please reconsider.', time: '31 Aug, 4:00 PM' },
-    ]},
-  ]);
+function MyOffersView({ user }) {
+  const [offers, setOffers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [expandedOffer, setExpandedOffer] = useState(null);
   const [replyText, setReplyText] = useState('');
 
-  const sendReply = (offerId) => {
+  const cleanBuyerPhone = user?.phone ? String(user.phone).replace(/\D/g, '').slice(-10) : '';
+
+  const loadBids = async () => {
+    try {
+      setIsRefreshing(true);
+      // Fetch live bids from Supabase
+      const liveBids = await fetchMarketBids();
+      if (liveBids && liveBids.length > 0) {
+        // Map bids to frontend structure
+        const mapped = liveBids.map(b => {
+          const cropInfo = b.crop_listings || {};
+          const statusRaw = (b.status || 'PENDING').toUpperCase();
+          const displayStatus = 
+            statusRaw === 'ACCEPTED' ? 'Accepted' :
+            statusRaw === 'REJECTED' ? 'Rejected' :
+            statusRaw === 'COUNTERED' ? 'Countered' :
+            statusRaw === 'WITHDRAWN' ? 'Withdrawn' :
+            'Pending';
+
+          const threadMessages = Array.isArray(b.thread) && b.thread.length > 0
+            ? b.thread
+            : (b.notes ? [{ from: 'buyer', text: b.notes, time: new Date(b.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }] : [
+                { from: 'buyer', text: `Placed digital offer of ₹${Number(b.bid_price_per_qtl).toLocaleString()}/Q for ${b.quantity_qtl} Qtl.`, time: new Date(b.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
+              ]);
+
+          return {
+            id: `BID-${b.id.slice(0, 6).toUpperCase()}`,
+            supabaseId: b.id,
+            listingId: b.listing_id,
+            farmer: cropInfo.farmer_name || 'Registered Kisan',
+            farmerPhone: cropInfo.phone || '',
+            crop: `${cropInfo.crop_name || 'Agri Lot'}${cropInfo.variety ? ` (${cropInfo.variety})` : ''}`,
+            qty: `${b.quantity_qtl} Q`,
+            quantityNum: Number(b.quantity_qtl),
+            price: Number(b.bid_price_per_qtl),
+            total: `₹${(Number(b.bid_price_per_qtl) * Number(b.quantity_qtl)).toLocaleString('en-IN')}`,
+            status: displayStatus,
+            counterPrice: b.counter_price_per_qtl ? Number(b.counter_price_per_qtl) : null,
+            date: new Date(b.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+            thread: threadMessages,
+            buyerPhone: b.buyer_phone,
+            isLiveSupabase: true
+          };
+        });
+
+        // Filter for this buyer if not demo or show all
+        setOffers(mapped);
+      } else {
+        // Fallback default sample if empty
+        setOffers([
+          {
+            id: 'BID-DEMO1',
+            supabaseId: null,
+            farmer: 'Dnyaneshwar Patil',
+            crop: 'Onion (Red Nasik)',
+            qty: '50 Q',
+            price: 2650,
+            total: '₹1,32,500',
+            status: 'Pending',
+            date: 'Today',
+            thread: [{ from: 'buyer', text: 'Offering ₹2,650/Q for your 50 Qtl Onion lot.', time: '10:00 AM' }]
+          }
+        ]);
+      }
+    } catch (err) {
+      console.warn('Error loading market bids for buyer:', err);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    loadBids();
+
+    // Realtime subscription for instant updates when farmer accepts/rejects
+    const unsub = subscribeToMarketplace((payload) => {
+      if (isMounted) {
+        loadBids();
+        if (payload?.table === 'market_bids' && payload?.new?.status === 'ACCEPTED') {
+          confetti({ particleCount: 60, spread: 70 });
+        }
+      }
+    });
+
+    const interval = setInterval(() => {
+      if (isMounted) loadBids();
+    }, 8000);
+
+    return () => {
+      isMounted = false;
+      unsub();
+      clearInterval(interval);
+    };
+  }, [cleanBuyerPhone]);
+
+  const sendReply = async (offerId) => {
     if (!replyText.trim()) return;
-    setOffers(prev => prev.map(o => o.id === offerId
-      ? { ...o, thread: [...o.thread, { from: 'buyer', text: replyText, time: 'Just now' }] }
+    const target = offers.find(o => o.id === offerId || o.supabaseId === offerId);
+    if (!target) return;
+
+    const newMsg = {
+      from: 'buyer',
+      text: replyText.trim(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    const updatedThread = [...(target.thread || []), newMsg];
+
+    setOffers(prev => prev.map(o => (o.id === offerId || o.supabaseId === offerId)
+      ? { ...o, thread: updatedThread }
       : o
     ));
     setReplyText('');
+
+    if (target.supabaseId) {
+      try {
+        await updateBidStatus(target.supabaseId, target.status === 'Accepted' ? 'ACCEPTED' : 'PENDING', { thread: updatedThread });
+      } catch (e) {
+        console.warn('Failed to update thread in Supabase:', e);
+      }
+    }
   };
 
-  const withdrawOffer = (offerId) => {
-    if (!window.confirm('Withdraw this offer?')) return;
-    setOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'Withdrawn' } : o));
+  const withdrawOffer = async (offerId) => {
+    if (!window.confirm('Are you sure you want to withdraw this digital offer?')) return;
+    const target = offers.find(o => o.id === offerId || o.supabaseId === offerId);
+
+    setOffers(prev => prev.map(o => (o.id === offerId || o.supabaseId === offerId) ? { ...o, status: 'Withdrawn' } : o));
+
+    if (target?.supabaseId) {
+      try {
+        await updateBidStatus(target.supabaseId, 'WITHDRAWN');
+      } catch (e) {
+        console.warn('Failed to update withdrawn status in Supabase:', e);
+      }
+    }
   };
 
-  const acceptCounter = (offerId) => {
-    setOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'Accepted', price: o.counterPrice } : o));
-    alert('Counter-offer accepted! Updated to ₹' + offers.find(o => o.id === offerId)?.counterPrice + '/Q.');
+  const acceptCounter = async (offerId) => {
+    const target = offers.find(o => o.id === offerId || o.supabaseId === offerId);
+    if (!target) return;
+
+    const newPrice = target.counterPrice || target.price;
+    setOffers(prev => prev.map(o => (o.id === offerId || o.supabaseId === offerId)
+      ? { ...o, status: 'Accepted', price: newPrice, total: `₹${(newPrice * (o.quantityNum || 50)).toLocaleString('en-IN')}` }
+      : o
+    ));
+
+    if (target.supabaseId) {
+      try {
+        await updateBidStatus(target.supabaseId, 'ACCEPTED', { bid_price_per_qtl: newPrice });
+        confetti({ particleCount: 50, spread: 60 });
+        alert(`Counter-offer accepted! Contract confirmed at ₹${newPrice.toLocaleString()}/Q in Supabase.`);
+      } catch (e) {
+        console.warn('Failed to accept counter in Supabase:', e);
+      }
+    }
   };
 
   const statusStyle = s =>
-    s === 'Accepted' ? 'bg-emerald-100 text-emerald-700' :
-    s === 'Countered' ? 'bg-amber-100 text-amber-800' :
-    s === 'Rejected' ? 'bg-red-100 text-red-700' :
-    s === 'Withdrawn' ? 'bg-slate-100 text-slate-500' :
-    'bg-blue-100 text-blue-700';
+    s === 'Accepted' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' :
+    s === 'Countered' ? 'bg-amber-100 text-amber-800 border border-amber-300' :
+    s === 'Rejected' ? 'bg-red-100 text-red-700 border border-red-300' :
+    s === 'Withdrawn' ? 'bg-slate-100 text-slate-500 border border-slate-300' :
+    'bg-blue-100 text-blue-700 border border-blue-300 animate-pulse';
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-black text-slate-800">🤝 Active Procurement Offers & Bids</h2>
-        <p className="text-xs text-slate-500">Track negotiation status, counter-offers and digital contracts</p>
-      </div>
-
-      <div className="space-y-3">
-        {offers.map(o => (
-          <div key={o.id} className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
-            {/* Main Row */}
-            <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">{o.id}</span>
-                  <span className="font-black text-slate-800 text-sm">{o.crop}</span>
-                </div>
-                <p className="text-xs text-slate-500">
-                  Seller: <span className="font-semibold text-slate-700">{o.farmer}</span> • {o.qty} at <span className="font-bold text-emerald-700">₹{o.price}/Q</span> (Total: {o.total})
-                </p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Submitted on {o.date}</p>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusStyle(o.status)}`}>{o.status}</span>
-                {o.status === 'Countered' && (
-                  <button onClick={() => acceptCounter(o.id)}
-                    className="px-3 py-1.5 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700 transition">
-                    Accept ₹{o.counterPrice}/Q
-                  </button>
-                )}
-                {o.status === 'Pending' && (
-                  <button onClick={() => withdrawOffer(o.id)}
-                    className="px-3 py-1.5 bg-red-50 text-red-600 font-bold text-xs rounded-xl border border-red-200 hover:bg-red-100 transition flex items-center gap-1">
-                    <Trash2 className="w-3 h-3" /> Withdraw
-                  </button>
-                )}
-                <button
-                  onClick={() => setExpandedOffer(expandedOffer === o.id ? null : o.id)}
-                  className="px-3 py-1.5 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-200 transition flex items-center gap-1"
-                >
-                  <MessageCircle className="w-3 h-3" />
-                  {expandedOffer === o.id ? 'Hide Chat' : 'View Thread'}
-                </button>
-              </div>
-            </div>
-
-            {/* Negotiation Thread */}
-            {expandedOffer === o.id && (
-              <div className="border-t border-slate-100 p-4 space-y-3 bg-slate-50/50">
-                <p className="text-xs font-bold text-slate-500 mb-2">💬 Negotiation Thread</p>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {o.thread.map((msg, i) => (
-                    <div key={i} className={`flex ${msg.from === 'buyer' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-xs rounded-2xl px-3 py-2 text-xs ${msg.from === 'buyer' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white border border-slate-200 text-slate-800 rounded-bl-sm'}`}>
-                        <p>{msg.text}</p>
-                        <p className={`text-[10px] mt-1 ${msg.from === 'buyer' ? 'text-blue-200' : 'text-slate-400'}`}>{msg.time}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {o.status !== 'Accepted' && o.status !== 'Rejected' && o.status !== 'Withdrawn' && (
-                  <div className="flex gap-2 mt-2">
-                    <input value={replyText} onChange={e => setReplyText(e.target.value)}
-                      placeholder="Type your counter message..."
-                      className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-400" />
-                    <button onClick={() => sendReply(o.id)}
-                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition">
-                      <Send className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-black text-slate-800">🤝 Active Procurement Offers & Bids</h2>
+            <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Live Supabase Sync
+            </span>
           </div>
-        ))}
+          <p className="text-xs text-slate-500">Realtime negotiation tracking, farmer responses, and digital escrow locking</p>
+        </div>
+
+        <button
+          onClick={loadBids}
+          disabled={isRefreshing}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 shadow-xs transition cursor-pointer self-start sm:self-auto"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span>{isRefreshing ? 'Syncing...' : 'Sync Live Bids'}</span>
+        </button>
       </div>
+
+      {loading ? (
+        <div className="bg-white rounded-2xl border border-slate-100 p-10 text-center">
+          <RefreshCw className="w-6 h-6 text-blue-600 animate-spin mx-auto mb-2" />
+          <p className="text-xs text-slate-500">Connecting to Supabase marketplace database...</p>
+        </div>
+      ) : offers.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-10 text-center">
+          <p className="text-sm font-bold text-slate-700">No Active Bids Found</p>
+          <p className="text-xs text-slate-400 mt-1">Browse Farmer Lots in "Find Farmer Lots" to place your first live bid.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {offers.map(o => (
+            <div key={o.id} className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden transition hover:shadow-md">
+              {/* Main Row */}
+              <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">{o.id}</span>
+                    <span className="font-black text-slate-800 text-sm">{o.crop}</span>
+                    {o.isLiveSupabase && (
+                      <span className="text-[10px] font-black bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.2 rounded">
+                        ⚡ Live DB
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Seller: <span className="font-semibold text-slate-700">{o.farmer}</span> • {o.qty} at <span className="font-bold text-emerald-700">₹{o.price.toLocaleString()}/Q</span> (Total: {o.total})
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Submitted on {o.date}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusStyle(o.status)}`}>
+                    {o.status === 'Pending' ? '⏳ Pending Farmer Review' : o.status === 'Accepted' ? '✅ Deal Accepted!' : o.status === 'Rejected' ? '❌ Rejected' : o.status}
+                  </span>
+                  {o.status === 'Countered' && (
+                    <button onClick={() => acceptCounter(o.id)}
+                      className="px-3 py-1.5 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700 transition cursor-pointer shadow-xs">
+                      Accept ₹{o.counterPrice}/Q
+                    </button>
+                  )}
+                  {o.status === 'Pending' && (
+                    <button onClick={() => withdrawOffer(o.id)}
+                      className="px-3 py-1.5 bg-red-50 text-red-600 font-bold text-xs rounded-xl border border-red-200 hover:bg-red-100 transition flex items-center gap-1 cursor-pointer">
+                      <Trash2 className="w-3 h-3" /> Withdraw
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setExpandedOffer(expandedOffer === o.id ? null : o.id)}
+                    className="px-3 py-1.5 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-200 transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <MessageCircle className="w-3 h-3" />
+                    {expandedOffer === o.id ? 'Hide Chat' : `Chat (${o.thread.length})`}
+                  </button>
+                </div>
+              </div>
+
+              {/* Negotiation Thread */}
+              {expandedOffer === o.id && (
+                <div className="border-t border-slate-100 p-4 space-y-3 bg-slate-50/50">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-slate-600">💬 Live Negotiation Thread with {o.farmer}</p>
+                    <span className="text-[10px] text-slate-400 font-mono">Syncs to Supabase</span>
+                  </div>
+                  <div className="space-y-2 max-h-48 overflow-y-auto p-1">
+                    {o.thread.map((msg, i) => (
+                      <div key={i} className={`flex ${msg.from === 'buyer' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-xs rounded-2xl px-3 py-2 text-xs ${msg.from === 'buyer' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white border border-slate-200 text-slate-800 rounded-bl-sm shadow-xs'}`}>
+                          <p>{msg.text}</p>
+                          <p className={`text-[10px] mt-1 ${msg.from === 'buyer' ? 'text-blue-200' : 'text-slate-400'}`}>{msg.time}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {o.status !== 'Accepted' && o.status !== 'Rejected' && o.status !== 'Withdrawn' && (
+                    <div className="flex gap-2 mt-2">
+                      <input value={replyText} onChange={e => setReplyText(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') sendReply(o.id); }}
+                        placeholder="Type counter offer or message to farmer..."
+                        className="flex-1 px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-400 focus:outline-none" />
+                      <button onClick={() => sendReply(o.id)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition cursor-pointer flex items-center gap-1 font-bold text-xs">
+                        <Send className="w-3.5 h-3.5" /> Send
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Offer History */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 font-black text-slate-700 text-sm">📜 Offer History (Past 30 Days)</div>
+        <div className="p-4 border-b border-slate-100 font-black text-slate-700 text-sm flex items-center justify-between">
+          <span>📜 Historical Contracts & Closed Bids</span>
+          <span className="text-xs text-slate-400 font-normal">Past 30 Days</span>
+        </div>
         <div className="divide-y divide-slate-50 text-xs">
           {[
             { id: 'OFF-098', crop: 'Onion', farmer: 'Sahyadri FPO', status: 'Accepted', price: '₹2,600/Q', date: '22 Aug 2026' },
@@ -1042,6 +1276,7 @@ function MyOffersView() {
     </div>
   );
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 6. ORDERS & CONTRACTS
@@ -2327,11 +2562,11 @@ export default function BuyerDashboardNew({ user, onLogout, lang: appLang = 'en'
 
   const renderSection = () => {
     switch (activeSection) {
-      case 'dashboard':   return <DashboardOverview onNavigate={navigate} />;
-      case 'find-crops':  return <FindCropsView />;
-      case 'post-req':    return <PostRequirement />;
-      case 'ai-matching': return <AiMatchingView />;
-      case 'my-offers':   return <MyOffersView />;
+      case 'dashboard':   return <DashboardOverview onNavigate={navigate} user={buyerProfile} />;
+      case 'find-crops':  return <FindCropsView user={buyerProfile} onNavigate={navigate} />;
+      case 'post-req':    return <PostRequirement user={buyerProfile} />;
+      case 'ai-matching': return <AiMatchingView user={buyerProfile} />;
+      case 'my-offers':   return <MyOffersView user={buyerProfile} />;
       case 'orders':      return <OrdersView />;
       case 'payments':    return <PaymentsView user={user} />;
       case 'logistics':   return <BuyerLogisticsView />;

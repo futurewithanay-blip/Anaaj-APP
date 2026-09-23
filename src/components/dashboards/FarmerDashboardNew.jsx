@@ -26,7 +26,7 @@ import FarmerBuyerReviews from '../panels/FarmerPanel/FarmerBuyerReviews';
 import FpoMembershipManager from '../common/FpoMembershipManager';
 import VoiceInputMic from '../common/VoiceInputMic';
 import NearbyMandiFinder from '../common/NearbyMandiFinder';
-import { createCropListing, fetchCropListings, fetchMarketBids, updateBidStatus } from '../../services/supabaseClient';
+import { createCropListing, fetchCropListings, fetchMarketBids, updateBidStatus, subscribeToMarketplace } from '../../services/supabaseClient';
 
 // ─── Sample Data ───────────────────────────────────────────────────────────────
 const CROPS = [
@@ -966,8 +966,8 @@ function BuyerOffersFull({ offers = OFFERS, offerStatusMap = {}, onOfferAction, 
       ) : (
         <div className="space-y-4">
           {offers.map(o => {
-          const currentStatus = offerStatusMap[o.id];
-          return (
+            const currentStatus = offerStatusMap[o.id] || (o.status === 'Accepted' ? 'accepted' : o.status === 'Rejected' ? 'rejected' : o.status === 'Negotiating' ? 'negotiating' : null);
+            return (
             <div key={o.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
@@ -1632,19 +1632,33 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
           }
 
           if (liveBids && liveBids.length > 0) {
-            const mappedBids = liveBids.map(b => ({
-              id: b.id,
-              supabaseId: b.id,
-              buyer: b.buyer_name || 'Verified Buyer',
-              company: b.buyer_company || 'AgriNova Certified Buyer',
-              crop: b.crop_listings?.crop_name || 'Market Lot',
-              qty: `${b.quantity_qtl} Q`,
-              offered: `₹${Number(b.bid_price_per_qtl).toLocaleString()}/q`,
-              total: `₹${(Number(b.bid_price_per_qtl) * Number(b.quantity_qtl)).toLocaleString()}`,
-              status: b.status === 'ACCEPTED' ? 'Accepted' : b.status === 'REJECTED' ? 'Rejected' : 'New',
-              avatar: '🏢',
-              isLiveSupabase: true
-            }));
+            const mappedBids = liveBids.map(b => {
+              const s = (b.status || 'PENDING').toUpperCase();
+              return {
+                id: b.id,
+                supabaseId: b.id,
+                buyer: b.buyer_name || 'Verified Buyer',
+                company: b.buyer_company || 'AgriNova Certified Buyer',
+                crop: b.crop_listings?.crop_name || 'Market Lot',
+                qty: `${b.quantity_qtl} Q`,
+                offered: `₹${Number(b.bid_price_per_qtl).toLocaleString()}/q`,
+                total: `₹${(Number(b.bid_price_per_qtl) * Number(b.quantity_qtl)).toLocaleString()}`,
+                status: s === 'ACCEPTED' ? 'Accepted' : s === 'REJECTED' ? 'Rejected' : s === 'COUNTERED' ? 'Negotiating' : 'New',
+                avatar: '🏢',
+                isLiveSupabase: true
+              };
+            });
+
+            // Pre-populate offerStatusMap from Supabase database
+            const dbStatusMap = {};
+            liveBids.forEach(b => {
+              const s = (b.status || '').toUpperCase();
+              if (s === 'ACCEPTED') dbStatusMap[b.id] = 'accepted';
+              if (s === 'REJECTED') dbStatusMap[b.id] = 'rejected';
+              if (s === 'COUNTERED') dbStatusMap[b.id] = 'negotiating';
+            });
+            setOfferStatusMap(prev => ({ ...dbStatusMap, ...prev }));
+
             setOffersList(prev => {
               if (!isDemo) return mappedBids;
               const bidIds = new Set(mappedBids.map(b => b.id));
@@ -1657,7 +1671,21 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
       }
     }
     loadData();
-    return () => { isMounted = false; };
+
+    // Subscribe to realtime updates for instant bid appearance & status changes
+    const unsub = subscribeToMarketplace(() => {
+      if (isMounted) loadData();
+    });
+
+    const interval = setInterval(() => {
+      if (isMounted) loadData();
+    }, 8000);
+
+    return () => {
+      isMounted = false;
+      unsub();
+      clearInterval(interval);
+    };
   }, [isDemo, user?.phone]);
 
   const handleUpdateFarmerProfile = (newProfile) => {
@@ -1670,7 +1698,7 @@ export default function FarmerDashboardNew({ user, onLogout, lang: appLang = 'en
   const handleOfferAction = async (id, action) => {
     setOfferStatusMap(p => ({ ...p, [id]: action }));
     try {
-      const statusMap = { accepted: 'ACCEPTED', rejected: 'REJECTED', negotiating: 'PENDING' };
+      const statusMap = { accepted: 'ACCEPTED', rejected: 'REJECTED', negotiating: 'COUNTERED' };
       if (statusMap[action]) {
         await updateBidStatus(id, statusMap[action]);
       }

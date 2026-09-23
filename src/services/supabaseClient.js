@@ -151,9 +151,12 @@ export async function fetchCropListings(status = 'ACTIVE') {
   if (isSupabaseConfigured() && supabase) {
     try {
       let query = supabase.from('crop_listings').select('*').order('created_at', { ascending: false });
-      if (status) query = query.eq('status', status);
+      if (status && status !== 'ALL') {
+        query = query.or(`status.ilike.${status},status.is.null`);
+      }
       const { data, error } = await query;
       if (!error && data) return data;
+      if (error) console.warn('[Supabase] Fetch listings error:', error.message);
     } catch (err) {
       console.warn('[Supabase] Fetch listings error:', err);
     }
@@ -204,6 +207,7 @@ export async function createCropListing(listingData) {
       if (!error && data) {
         const local = getLocal(STORAGE_KEYS.LISTINGS);
         setLocal(STORAGE_KEYS.LISTINGS, [data, ...local.filter(l => l.id !== data.id)]);
+        try { window.dispatchEvent(new CustomEvent('anaaj_crop_listing_created', { detail: data })); } catch (e) {}
         return { success: true, data, source: 'supabase' };
       }
       if (error) {
@@ -217,6 +221,7 @@ export async function createCropListing(listingData) {
   const newRow = { ...payload, id: `local-list-${Date.now()}`, created_at: new Date().toISOString() };
   const local = getLocal(STORAGE_KEYS.LISTINGS);
   setLocal(STORAGE_KEYS.LISTINGS, [newRow, ...local]);
+  try { window.dispatchEvent(new CustomEvent('anaaj_crop_listing_created', { detail: newRow })); } catch (e) {}
   return { success: true, data: newRow, source: 'local' };
 }
 
@@ -277,12 +282,16 @@ export async function submitFarmerGrievance(ticketData) {
 // ─────────────────────────────────────────────────────────────────────────────
 const isValidUuid = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
-export async function fetchMarketBids(listingId = null) {
+export async function fetchMarketBids(listingId = null, buyerPhone = null) {
   if (isSupabaseConfigured() && supabase) {
     try {
       let query = supabase.from('market_bids').select('*, crop_listings(*)').order('created_at', { ascending: false });
       if (listingId && isValidUuid(listingId)) {
         query = query.eq('listing_id', listingId);
+      }
+      if (buyerPhone) {
+        const cleanPhone = String(buyerPhone).replace(/\D/g, '').slice(-10);
+        query = query.ilike('buyer_phone', `%${cleanPhone}%`);
       }
       const { data, error } = await query;
       if (!error && data) return data;
@@ -314,10 +323,15 @@ export async function fetchMarketBids(listingId = null) {
       created_at: new Date().toISOString()
     }
   ]);
+  let filtered = local;
   if (listingId) {
-    return local.filter(b => b.listing_id === listingId);
+    filtered = filtered.filter(b => b.listing_id === listingId);
   }
-  return local;
+  if (buyerPhone) {
+    const cleanPhone = String(buyerPhone).replace(/\D/g, '').slice(-10);
+    filtered = filtered.filter(b => String(b.buyer_phone || '').replace(/\D/g, '').includes(cleanPhone));
+  }
+  return filtered;
 }
 
 export async function placeBuyerBid(bidData) {
@@ -329,15 +343,19 @@ export async function placeBuyerBid(bidData) {
     buyer_phone: bidData.buyer_phone || '+91 98000 11111',
     bid_price_per_qtl: Number(bidData.bid_price_per_qtl),
     quantity_qtl: Number(bidData.quantity_qtl) || 50,
-    status: bidData.status || 'PENDING'
+    status: bidData.status || 'PENDING',
+    counter_price_per_qtl: bidData.counter_price_per_qtl ? Number(bidData.counter_price_per_qtl) : null,
+    notes: bidData.notes || null,
+    thread: bidData.thread || []
   };
 
   if (isSupabaseConfigured() && supabase) {
     try {
-      const { data, error } = await supabase.from('market_bids').insert([payload]).select().single();
+      const { data, error } = await supabase.from('market_bids').insert([payload]).select('*, crop_listings(*)').single();
       if (!error && data) {
         const local = getLocal(STORAGE_KEYS.BIDS);
         setLocal(STORAGE_KEYS.BIDS, [data, ...local]);
+        try { window.dispatchEvent(new CustomEvent('anaaj_market_bid_created', { detail: data })); } catch (e) {}
         return { success: true, data, source: 'supabase' };
       }
       console.warn('[Supabase] Place bid error:', error?.message);
@@ -349,23 +367,107 @@ export async function placeBuyerBid(bidData) {
   const newRow = { ...payload, id: `local-bid-${Date.now()}`, created_at: new Date().toISOString() };
   const local = getLocal(STORAGE_KEYS.BIDS);
   setLocal(STORAGE_KEYS.BIDS, [newRow, ...local]);
+  try { window.dispatchEvent(new CustomEvent('anaaj_market_bid_created', { detail: newRow })); } catch (e) {}
   return { success: true, data: newRow, source: 'local' };
 }
 
-export async function updateBidStatus(bidId, status) {
+export async function updateBidStatus(bidId, status, extraFields = {}) {
+  const updatePayload = { status, ...extraFields };
   if (isSupabaseConfigured() && supabase && isValidUuid(bidId)) {
     try {
-      const { data, error } = await supabase.from('market_bids').update({ status }).eq('id', bidId).select().single();
-      if (!error && data) return { success: true, data, source: 'supabase' };
+      const { data, error } = await supabase
+        .from('market_bids')
+        .update(updatePayload)
+        .eq('id', bidId)
+        .select('*, crop_listings(*)')
+        .single();
+      if (!error && data) {
+        const local = getLocal(STORAGE_KEYS.BIDS);
+        const updated = local.map(b => b.id === bidId ? { ...b, ...data } : b);
+        setLocal(STORAGE_KEYS.BIDS, updated);
+        try { window.dispatchEvent(new CustomEvent('anaaj_bid_status_updated', { detail: data })); } catch (e) {}
+        return { success: true, data, source: 'supabase' };
+      }
+      console.warn('[Supabase] Update bid status error:', error?.message);
     } catch (err) {
-      console.warn('[Supabase] Update bid status error:', err);
+      console.warn('[Supabase] Update bid status exception:', err);
     }
   }
 
   const local = getLocal(STORAGE_KEYS.BIDS);
-  const updated = local.map(b => b.id === bidId ? { ...b, status } : b);
+  const updated = local.map(b => b.id === bidId ? { ...b, ...updatePayload } : b);
   setLocal(STORAGE_KEYS.BIDS, updated);
+  try { window.dispatchEvent(new CustomEvent('anaaj_bid_status_updated', { detail: { id: bidId, ...updatePayload } })); } catch (e) {}
   return { success: true, source: 'local' };
+}
+
+export async function deleteMarketBid(bidId) {
+  if (isSupabaseConfigured() && supabase && isValidUuid(bidId)) {
+    try {
+      const { error } = await supabase.from('market_bids').delete().eq('id', bidId);
+      if (!error) {
+        const local = getLocal(STORAGE_KEYS.BIDS);
+        setLocal(STORAGE_KEYS.BIDS, local.filter(b => b.id !== bidId));
+        try { window.dispatchEvent(new CustomEvent('anaaj_market_bid_deleted', { detail: { id: bidId } })); } catch (e) {}
+        return { success: true, source: 'supabase' };
+      }
+      console.warn('[Supabase] deleteMarketBid error:', error?.message);
+    } catch (err) {
+      console.warn('[Supabase] deleteMarketBid exception:', err);
+    }
+  }
+
+  const local = getLocal(STORAGE_KEYS.BIDS);
+  setLocal(STORAGE_KEYS.BIDS, local.filter(b => b.id !== bidId));
+  try { window.dispatchEvent(new CustomEvent('anaaj_market_bid_deleted', { detail: { id: bidId } })); } catch (e) {}
+  return { success: true, source: 'local' };
+}
+
+/**
+ * Subscribes to Supabase Realtime changes on crop_listings and market_bids,
+ * plus listens to local cross-tab window events for instantaneous reactivity.
+ */
+export function subscribeToMarketplace(onChange) {
+  const localListeners = [];
+
+  const handleCustomEvent = (evt) => {
+    if (onChange) onChange({ eventType: 'LOCAL_SYNC', detail: evt.detail });
+  };
+
+  ['anaaj_crop_listing_created', 'anaaj_market_bid_created', 'anaaj_bid_status_updated', 'anaaj_market_bid_deleted'].forEach(evtName => {
+    window.addEventListener(evtName, handleCustomEvent);
+    localListeners.push({ evtName, fn: handleCustomEvent });
+  });
+
+  let channel = null;
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      channel = supabase
+        .channel(`marketplace_live_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'crop_listings' }, (payload) => {
+          if (onChange) onChange({ table: 'crop_listings', ...payload });
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'market_bids' }, (payload) => {
+          if (onChange) onChange({ table: 'market_bids', ...payload });
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('[Supabase Realtime] Connected to marketplace live channel');
+          }
+        });
+    } catch (err) {
+      console.warn('[Supabase Realtime] Subscription error:', err);
+    }
+  }
+
+  return () => {
+    localListeners.forEach(({ evtName, fn }) => window.removeEventListener(evtName, fn));
+    if (channel && supabase) {
+      try {
+        supabase.removeChannel(channel);
+      } catch (e) {}
+    }
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
